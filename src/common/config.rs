@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use log::{debug, error, info};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -63,11 +64,45 @@ impl EnvValue {
 
 impl Config {
     pub fn load() -> anyhow::Result<Self> {
+        debug!("Locating configuration directory");
         let config_path = dirs::config_dir()
-            .ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?
+            .ok_or_else(|| {
+                error!("Could not find system config directory");
+                anyhow::anyhow!("Could not find config directory")
+            })?
             .join("prime-rs.conf");
 
-        let config_str = std::fs::read_to_string(config_path)?;
-        Ok(toml::from_str(&config_str)?)
+        info!("Loading configuration from: {}", config_path.display());
+
+        let config_str = std::fs::read_to_string(&config_path).map_err(|e| {
+            error!(
+                "Failed to read config file '{}': {}",
+                config_path.display(),
+                e
+            );
+            e
+        })?;
+
+        debug!("Configuration file size: {} bytes", config_str.len());
+
+        let config: Config = toml::from_str(&config_str).map_err(|e| {
+            error!("Failed to parse TOML configuration: {}", e);
+            e
+        })?;
+
+        debug!("Configuration parsed successfully");
+        debug!("  Global env vars: {}", config.environments.global.len());
+        debug!(
+            "  Executable configs: {}",
+            config.environments.executables.len()
+        );
+        if let Some(ref init_hook) = config.hooks.init {
+            debug!("  Init hook: {}", init_hook);
+        }
+        if let Some(ref shutdown_hook) = config.hooks.shutdown {
+            debug!("  Shutdown hook: {}", shutdown_hook);
+        }
+
+        Ok(config)
     }
 }
