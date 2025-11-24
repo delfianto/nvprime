@@ -1,0 +1,24 @@
+[package]
+name = "nvprime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+log.workspace = true
+chrono.workspace = true
+env_logger.workspace = true
+
+zbus.workspace = true
+dirs.workspace = true
+anyhow.workspace = true
+
+nix.workspace = true
+clap.workspace = true
+tokio.workspace = true
+
+# Local dependency
+primers-common = { path = "../common" }
+
+[[bin]]
+name = "nvprime"
+path = "src/main.rs"
