@@ -1,5 +1,6 @@
 use crate::common::config::NvGpuConfig;
 use crate::system::privilege::Privilege;
+
 use log::{debug, info, warn};
 use nvml_wrapper::Nvml;
 use nvml_wrapper::enum_wrappers::device::Clock;
@@ -67,7 +68,53 @@ impl NvTuner {
         }
     }
 
-    /// Apply tuning profile from stored config
+    /// Get and log GPU information
+    pub fn log_gpu_info(&mut self) -> Result<&mut Self, NvmlError> {
+        let device = self.get_device()?;
+
+        let name = device.name()?;
+        let brand = device.brand()?;
+        let uuid = device.uuid()?;
+        let memory_info = device.memory_info()?;
+        let enforced_power = device.enforced_power_limit()?;
+
+        info!("GPU: {} ({:?})", name, brand);
+        info!("UUID: {}", uuid);
+        info!(
+            "Memory: {:.2}GB / {:.2}GB",
+            memory_info.used as f64 / 1024.0 / 1024.0 / 1024.0,
+            memory_info.total as f64 / 1024.0 / 1024.0 / 1024.0
+        );
+        info!("Power limit: {}mW", enforced_power);
+
+        Ok(self)
+    }
+
+    /// Monitor and log GPU performance metrics
+    pub fn log_gpu_stat(&mut self) -> Result<&mut Self, NvmlError> {
+        let device = self.get_device()?;
+
+        let graphics_clock = device.clock_info(Clock::Graphics)?;
+        let memory_clock = device.clock_info(Clock::Memory)?;
+
+        let utilization = device.utilization_rates()?;
+        let temp = device.temperature(TemperatureSensor::Gpu)?;
+        let fan_speed = device.fan_speed(0).ok();
+
+        debug!("Performance stats:");
+        debug!("  Graphics clock: {} MHz", graphics_clock);
+        debug!("  Memory clock: {} MHz", memory_clock);
+        debug!("  GPU utilization: {}%", utilization.gpu);
+        debug!("  Memory utilization: {}%", utilization.memory);
+        debug!("  Temperature: {}°C", temp);
+        if let Some(speed) = fan_speed {
+            debug!("  Fan speed: {}%", speed);
+        }
+
+        Ok(self)
+    }
+
+    // Apply tuning profile from stored config
     pub fn apply_tuning(&mut self) -> Result<&mut Self, NvmlError> {
         let mut device = self.get_device()?;
         let device_name = device.name()?;
@@ -125,52 +172,6 @@ impl NvTuner {
         let default_power = device.power_management_limit_default()?;
         device.set_power_management_limit(default_power)?;
         info!("Restored power limit to default: {}mW", default_power);
-
-        Ok(self)
-    }
-
-    /// Get and log GPU information
-    pub fn log_gpu_info(&mut self) -> Result<&mut Self, NvmlError> {
-        let device = self.get_device()?;
-
-        let name = device.name()?;
-        let brand = device.brand()?;
-        let uuid = device.uuid()?;
-        let memory_info = device.memory_info()?;
-        let enforced_power = device.enforced_power_limit()?;
-
-        info!("GPU: {} ({:?})", name, brand);
-        info!("UUID: {}", uuid);
-        info!(
-            "Memory: {:.2}GB / {:.2}GB",
-            memory_info.used as f64 / 1024.0 / 1024.0 / 1024.0,
-            memory_info.total as f64 / 1024.0 / 1024.0 / 1024.0
-        );
-        info!("Power limit: {}mW", enforced_power);
-
-        Ok(self)
-    }
-
-    /// Monitor and log GPU performance metrics
-    pub fn log_gpu_stat(&mut self) -> Result<&mut Self, NvmlError> {
-        let device = self.get_device()?;
-
-        let graphics_clock = device.clock_info(Clock::Graphics)?;
-        let memory_clock = device.clock_info(Clock::Memory)?;
-
-        let utilization = device.utilization_rates()?;
-        let temp = device.temperature(TemperatureSensor::Gpu)?;
-        let fan_speed = device.fan_speed(0).ok();
-
-        debug!("Performance stats:");
-        debug!("  Graphics clock: {} MHz", graphics_clock);
-        debug!("  Memory clock: {} MHz", memory_clock);
-        debug!("  GPU utilization: {}%", utilization.gpu);
-        debug!("  Memory utilization: {}%", utilization.memory);
-        debug!("  Temperature: {}°C", temp);
-        if let Some(speed) = fan_speed {
-            debug!("  Fan speed: {}%", speed);
-        }
 
         Ok(self)
     }

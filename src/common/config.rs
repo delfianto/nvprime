@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use log::{debug, error, info};
 use nix::unistd::{Uid, User};
 use serde::Deserialize;
@@ -9,23 +8,47 @@ use std::path::PathBuf;
 #[derive(Deserialize, Debug)]
 pub struct Config {
     #[serde(default)]
-    pub common: CommonConfig,
+    pub tuning: TuningConfig,
 
     #[serde(default)]
     pub hooks: HooksConfig,
 
     #[serde(rename = "env")]
     pub environments: EnvironmentConfig,
-
-    #[serde(default)]
-    pub tuning: TuningConfig,
 }
 
 #[derive(Deserialize, Debug, Default)]
-pub struct CommonConfig {
+pub struct TuningConfig {
+    #[serde(default)]
+    pub process: ProcConfig,
+
+    #[serde(default)]
+    pub nvidia: NvGpuConfig,
+
+    #[serde(default)]
+    pub ryzen: AmdZenConfig,
+}
+
+#[derive(Clone, Deserialize, Debug, Default)]
+pub struct ProcConfig {
+    pub enabled: Option<bool>,
+    pub proc_ioprio: Option<u32>,
+    pub proc_renice: Option<u32>,
+    pub splitlock_hack: Option<bool>,
+}
+
+#[derive(Clone, Deserialize, Debug, Default)]
+pub struct NvGpuConfig {
+    pub enabled: Option<bool>,
+    pub set_max: Option<bool>,
+    pub power_limit: Option<u32>,
+    pub device_uuid: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Debug, Default)]
+pub struct AmdZenConfig {
+    pub enabled: Option<bool>,
     pub amd_epp: Option<String>,
-    pub gpu_id: Option<String>,
-    pub priority: Option<i32>,
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -40,20 +63,6 @@ pub struct EnvironmentConfig {
 
     #[serde(flatten)]
     pub executables: HashMap<String, HashMap<String, EnvValue>>,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct TuningConfig {
-    #[serde(default)]
-    pub nvidia: NvGpuConfig,
-}
-
-#[derive(Clone, Deserialize, Debug, Default)]
-pub struct NvGpuConfig {
-    pub enabled: Option<bool>,
-    pub set_max: Option<bool>,
-    pub power_limit: Option<u32>,
-    pub device_uuid: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -90,7 +99,7 @@ impl Config {
                 error!("Could not find system config directory");
                 anyhow::anyhow!("Could not find config directory")
             })?
-            .join("prime-rs.conf");
+            .join("primers.conf");
 
         info!("Loading configuration from: {}", config_path.display());
 
