@@ -28,7 +28,7 @@ fn main() -> Result<()> {
 
     // Run init hooks
     debug!("Running init hooks");
-    HookRunner::run_init(config.hooks.init.as_deref())?;
+    HookRunner::run_init(&config, config.hooks.init.as_deref())?;
 
     // Get executable name
     let exe_name = get_executable_name(&args[1]);
@@ -73,7 +73,7 @@ fn main() -> Result<()> {
 
     // Run shutdown hooks
     debug!("Running shutdown hooks");
-    HookRunner::run_shutdown(config.hooks.shutdown.as_deref())?;
+    HookRunner::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
 
     std::process::exit(exit_code);
 }

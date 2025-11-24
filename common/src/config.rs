@@ -1,7 +1,10 @@
 #![allow(dead_code)]
 use log::{debug, error, info};
+use nix::unistd::{Uid, User};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::env;
+use std::path::PathBuf;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -13,6 +16,9 @@ pub struct Config {
 
     #[serde(rename = "env")]
     pub environments: EnvironmentConfig,
+
+    #[serde(default)]
+    pub tuning: TuningConfig,
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -34,6 +40,20 @@ pub struct EnvironmentConfig {
 
     #[serde(flatten)]
     pub executables: HashMap<String, HashMap<String, EnvValue>>,
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct TuningConfig {
+    #[serde(default)]
+    pub nvidia: NvGpuConfig,
+}
+
+#[derive(Clone, Deserialize, Debug, Default)]
+pub struct NvGpuConfig {
+    pub enabled: Option<bool>,
+    pub set_max: Option<bool>,
+    pub power_limit: Option<u32>,
+    pub device_uuid: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -104,5 +124,23 @@ impl Config {
         }
 
         Ok(config)
+    }
+
+    fn get_original_user_home() -> Option<PathBuf> {
+        // Check for original user when running under pkexec
+        if let Ok(pkexec_uid) = env::var("PKEXEC_UID") {
+            let uid = pkexec_uid.parse::<u32>().ok()?;
+            let user = User::from_uid(Uid::from_raw(uid)).ok()??;
+            return Some(user.dir);
+        }
+
+        // Check for original user when running under sudo
+        if let Ok(sudo_user) = env::var("SUDO_USER") {
+            let user = User::from_name(&sudo_user).ok()??;
+            return Some(user.dir);
+        }
+
+        // Fall back to current user
+        env::var("HOME").ok().map(PathBuf::from)
     }
 }

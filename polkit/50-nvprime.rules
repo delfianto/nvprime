@@ -1,0 +1,7 @@
+// /etc/polkit-1/rules.d/50-primers.rules
+polkit.addRule(function(action, subject) {
+    if (action.id == "com.github.nvprime" &&
+        subject.isInGroup("gamemode")) {
+        return polkit.Result.YES;
+    }
+});
