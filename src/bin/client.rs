@@ -6,17 +6,18 @@ use primers::runner::env::EnvironmentBuilder;
 use primers::runner::hooks::HookRunner;
 use primers::runner::process::ProcessLauncher;
 use std::path::Path;
+use std::process;
 
 fn main() -> Result<()> {
     logging::init(true)?;
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 2 {
-        error!("Usage: prime-rs <executable> [args...]");
-        std::process::exit(1);
+        error!("Usage: nvprime <executable> [args...]");
+        process::exit(1);
     }
 
-    info!("Starting prime-rs");
+    info!("Starting nvprime");
     debug!("Command line arguments: {:?}", args);
 
     // Load configuration
@@ -39,18 +40,12 @@ fn main() -> Result<()> {
         "Applying global environment variables: {} vars",
         config.environments.global.len()
     );
-    for (key, value) in &config.environments.global {
-        debug!("  Global env: {} = {:?}", key, value);
-    }
     env_builder.merge_global(&config.environments.global);
 
     // Merge executable-specific environment variables
     if let Some(exe_config) = config.environments.executables.get(&exe_name) {
         info!("Found executable-specific configuration for '{}'", exe_name);
         debug!("Applying {} executable-specific env vars", exe_config.len());
-        for (key, value) in exe_config {
-            debug!("  Exe-specific env: {} = {:?}", key, value);
-        }
         env_builder.merge_executable(Some(exe_config));
     } else {
         debug!("No executable-specific configuration for '{}'", exe_name);
@@ -59,21 +54,23 @@ fn main() -> Result<()> {
 
     let final_env = env_builder.build();
     info!("Built final environment with {} variables", final_env.len());
-    for (key, value) in &final_env {
-        debug!("  Final env: {} = {}", key, value);
-    }
 
-    let launcher = ProcessLauncher::new(args[1].clone(), args[2..].to_vec()).with_env(final_env);
+    let mut launcher =
+        ProcessLauncher::new(args[1].clone(), args[2..].to_vec()).with_env(final_env);
 
     debug!("Launching process");
-    let exit_code = launcher.execute()?;
+    let child_pid = launcher.spawn()?;
+    info!("Process spawned with PID: {}", child_pid);
+
+    // Wait for process to complete
+    let exit_code = launcher.wait()?;
     info!("Process exited with code: {}", exit_code);
 
     // Run shutdown hooks
     debug!("Running shutdown hooks");
     HookRunner::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
 
-    std::process::exit(exit_code);
+    process::exit(exit_code);
 }
 
 fn get_executable_name(path: &str) -> String {
@@ -82,4 +79,10 @@ fn get_executable_name(path: &str) -> String {
         .and_then(|stem| stem.to_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| path.to_string())
+}
+
+fn is_tuning_enabled(config: &Config) -> bool {
+    config.tuning.process.enabled.unwrap_or(false)
+        || config.tuning.nvidia.enabled.unwrap_or(false)
+        || config.tuning.ryzen.enabled.unwrap_or(false)
 }

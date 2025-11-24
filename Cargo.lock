@@ -895,6 +895,7 @@ dependencies = [
  "clap",
  "dirs",
  "env_logger",
+ "libc",
  "log",
  "nix",
  "nvml-wrapper",
