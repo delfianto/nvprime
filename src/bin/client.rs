@@ -1,12 +1,10 @@
-mod common;
-mod logging;
-mod runner;
-mod system;
-
 use anyhow::Result;
-use common::{config::Config, hooks::HookRunner};
 use log::{debug, error, info};
-use runner::{env::EnvironmentBuilder, process::ProcessLauncher};
+use primers::common::config::Config;
+use primers::common::logging;
+use primers::runner::env::EnvironmentBuilder;
+use primers::runner::hooks::HookRunner;
+use primers::runner::process::ProcessLauncher;
 use std::path::Path;
 
 fn main() -> Result<()> {

@@ -3,6 +3,22 @@ use env_logger::Builder;
 use log::LevelFilter;
 use std::io::Write;
 
+/// Initialize the logging system with pretty formatting
+pub fn init(verbose: bool) -> Result<()> {
+    let level = if verbose {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    };
+
+    Builder::new()
+        .filter_level(level)
+        .format(format_log)
+        .try_init()?;
+
+    Ok(())
+}
+
 /// Shared log formatter function that can be used in production and tests
 fn format_log(buf: &mut env_logger::fmt::Formatter, record: &log::Record) -> std::io::Result<()> {
     // Extract just the module name (last component after ::)
@@ -31,20 +47,4 @@ fn format_log(buf: &mut env_logger::fmt::Formatter, record: &log::Record) -> std
         module,
         record.args()
     )
-}
-
-/// Initialize the logging system with pretty formatting
-pub fn init(verbose: bool) -> Result<()> {
-    let level = if verbose {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Info
-    };
-
-    Builder::new()
-        .filter_level(level)
-        .format(format_log)
-        .try_init()?;
-
-    Ok(())
 }
