@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if (( $EUID != 0 )); then
+  echo "Please run as root"
+  exit
+fi
+
+echo -ne "\n--- INSTALLING POLICY ---\n"
+install -v -Dm644 com.github.nvprime.policy /usr/share/polkit-1/actions/
+install -v -Dm644 50-nvprime.rules /etc/polkit-1/rules.d/
+
+echo -ne "\n--- RELOADING DAEMON ---\n"
+systemctl restart polkit
+systemctl --no-pager status polkit -l
+
+echo -ne "\n--- CHECKING RESULT ---\n"
+pkaction -a com.github.nvprime -v
