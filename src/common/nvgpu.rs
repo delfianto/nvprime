@@ -16,19 +16,15 @@ enum GpuId {
 
 impl NvGpu {
     /// Initialize NVIDIA GPU support
-    pub fn init(uuid: String) -> Result<Option<Self>, NvmlError> {
-        debug!("Initializing NVML");
-        let nvml = match Nvml::init() {
-            Ok(n) => n,
-            Err(e) => {
-                error!("FATAL: NVML initialization failed: {}", e);
-                error!("PRIME rendering unavailable. Game will run at ~3 FPS on iGPU.");
-                std::process::exit(1);
-            }
-        };
+    pub fn init(uuid: String) -> Result<Self, NvmlError> {
+        debug!("Starting NVML initialization");
+        let nvml = Nvml::init().map_err(|e| {
+            error!("FATAL: NVML initialization failed: {}", e);
+            error!("PRIME rendering unavailable. Game will run at ~3 FPS on iGPU.");
+            e
+        })?;
 
         let device_identifier = if !uuid.is_empty() {
-            info!("Will use device UUID: {}", uuid);
             GpuId::Uuid(uuid.clone())
         } else {
             debug!("Will use device index 0");
@@ -41,12 +37,12 @@ impl NvGpu {
         };
 
         let device_name = device.name()?;
-        info!("Initialized GpuTuner for device: {}", device_name);
+        info!("Initialized NVML for {}", device_name);
 
-        Ok(Some(Self {
+        Ok(Self {
             nvml,
             gpu_id: device_identifier,
-        }))
+        })
     }
 
     /// Get device (helper method)
@@ -77,7 +73,6 @@ impl NvGpu {
         );
 
         info!("Power limit: {}mW", enforced_power);
-
         Ok(self)
     }
 

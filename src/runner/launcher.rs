@@ -36,14 +36,11 @@ impl Launcher {
         for (key, value) in &self.vars {
             unsafe {
                 std::env::set_var(key, value);
-                debug!("Set environment variable '{}' = '{}'", key, value);
+                debug!("  Setting Vars: {} = {}", key, value);
             }
         }
 
-        debug!(
-            "Spawning process '{}' with args: {:?}",
-            self.cmnd, self.args
-        );
+        debug!("Running process '{}' with args: {:?}", self.cmnd, self.args);
 
         let mut cmd = Command::new(&self.cmnd);
         cmd.args(&self.args)
@@ -70,7 +67,7 @@ impl Launcher {
     /// Waits for the spawned process to finish and returns its exit code.
     pub fn wait(&mut self) -> anyhow::Result<i32> {
         if let Some(child) = &mut self.child {
-            debug!("Waiting for process PID {}", child.id());
+            debug!("Waiting process '{}' with PID {}", self.cmnd, child.id());
             let status = child.wait().map_err(|e| {
                 error!("Failed waiting on process PID {}: {}", child.id(), e);
                 anyhow::anyhow!(e)
