@@ -80,9 +80,3 @@ fn get_executable_name(path: &str) -> String {
         .map(|s| s.to_string())
         .unwrap_or_else(|| path.to_string())
 }
-
-fn is_tuning_enabled(config: &Config) -> bool {
-    config.tuning.process.enabled.unwrap_or(false)
-        || config.tuning.nvidia.enabled.unwrap_or(false)
-        || config.tuning.ryzen.enabled.unwrap_or(false)
-}

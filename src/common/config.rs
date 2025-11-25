@@ -1,9 +1,6 @@
 use log::{debug, error, info};
-use nix::unistd::{Uid, User};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::env;
-use std::path::PathBuf;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -135,21 +132,9 @@ impl Config {
         Ok(config)
     }
 
-    fn get_original_user_home() -> Option<PathBuf> {
-        // Check for original user when running under pkexec
-        if let Ok(pkexec_uid) = env::var("PKEXEC_UID") {
-            let uid = pkexec_uid.parse::<u32>().ok()?;
-            let user = User::from_uid(Uid::from_raw(uid)).ok()??;
-            return Some(user.dir);
-        }
-
-        // Check for original user when running under sudo
-        if let Ok(sudo_user) = env::var("SUDO_USER") {
-            let user = User::from_name(&sudo_user).ok()??;
-            return Some(user.dir);
-        }
-
-        // Fall back to current user
-        env::var("HOME").ok().map(PathBuf::from)
+    pub fn is_tuning_enabled(&self) -> bool {
+        self.tuning.process.enabled.unwrap_or(false)
+            || self.tuning.nvidia.enabled.unwrap_or(false)
+            || self.tuning.ryzen.enabled.unwrap_or(false)
     }
 }
