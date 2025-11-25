@@ -1,5 +1,5 @@
 use crate::common::config::Config;
-use crate::system::nvidia::NvTuner;
+use crate::daemon::nvidia::NvTuner;
 use anyhow::Result;
 use log::{debug, error, info, warn};
 use std::process::Command;
@@ -44,7 +44,7 @@ impl HookRunner {
     fn apply_nvidia_tuning(config: &Config) -> Result<()> {
         debug!("Checking NVIDIA tuning configuration");
 
-        match NvTuner::new_from_config(config.tuning.nvidia.clone()) {
+        match NvTuner::from_config(config.tuning.nvidia.clone()) {
             Ok(Some(mut tuner)) => {
                 tuner
                     .log_gpu_info()?
@@ -70,7 +70,7 @@ impl HookRunner {
     fn restore_nvidia_tuning(config: &Config) -> Result<()> {
         debug!("Checking NVIDIA tuning configuration for restore");
 
-        match NvTuner::new_from_config(config.tuning.nvidia.clone()) {
+        match NvTuner::from_config(config.tuning.nvidia.clone()) {
             Ok(Some(mut tuner)) => {
                 tuner
                     .restore_defaults()
