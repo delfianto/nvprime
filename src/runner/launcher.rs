@@ -10,22 +10,22 @@ pub struct Launcher {
 }
 
 impl Launcher {
-    pub fn new(executable: String, args: Vec<String>) -> Self {
-        debug!("Creating ProcessLauncher for executable: {}", executable);
+    pub fn new(cmd: String, args: Vec<String>) -> Self {
+        debug!("Initializing process launcher for executable: {}", cmd);
         Launcher {
-            cmnd: executable,
+            cmnd: cmd,
             args,
             vars: HashMap::new(),
             child: None,
         }
     }
 
-    pub fn with_env(mut self, envvars: HashMap<String, String>) -> Self {
+    pub fn with_env(mut self, env_vars: HashMap<String, String>) -> Self {
         debug!(
             "Adding environment variables to process, count: {}",
-            envvars.len()
+            env_vars.len()
         );
-        self.vars = envvars;
+        self.vars = env_vars;
         self
     }
 
