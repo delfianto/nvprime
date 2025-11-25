@@ -2,17 +2,17 @@ use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use std::process::{Child, Command, Stdio};
 
-pub struct ProcessLauncher {
+pub struct Launcher {
     cmnd: String,
     args: Vec<String>,
     vars: HashMap<String, String>,
     child: Option<Child>,
 }
 
-impl ProcessLauncher {
+impl Launcher {
     pub fn new(executable: String, args: Vec<String>) -> Self {
         debug!("Creating ProcessLauncher for executable: {}", executable);
-        ProcessLauncher {
+        Launcher {
             cmnd: executable,
             args,
             vars: HashMap::new(),

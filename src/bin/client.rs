@@ -1,12 +1,8 @@
 use anyhow::Result;
 use log::{debug, error, info};
-use primers::common::config::Config;
-use primers::common::logging;
-use primers::runner::env::EnvironmentBuilder;
-use primers::runner::hooks::HookRunner;
-use primers::runner::process::ProcessLauncher;
-use std::path::Path;
-use std::process;
+use primers::common::{Config, NvGpu, logging};
+use primers::runner::{EnvBuilder, Hooks, Launcher};
+use std::{path::Path, process};
 
 fn main() -> Result<()> {
     logging::init(true)?;
@@ -27,13 +23,13 @@ fn main() -> Result<()> {
 
     // Run init hooks
     debug!("Running init hooks");
-    HookRunner::run_init(&config, config.hooks.init.as_deref())?;
+    Hooks::run_init(&config, config.hooks.init.as_deref())?;
 
     // Get executable name
     let exe_name = get_executable_name(&args[1]);
     debug!("Extracted executable name: '{}'", exe_name);
 
-    let mut env_builder = EnvironmentBuilder::new();
+    let mut env_builder = EnvBuilder::new();
 
     // Merge global environment variables
     debug!(
@@ -55,8 +51,7 @@ fn main() -> Result<()> {
     let final_env = env_builder.build();
     info!("Built final environment with {} variables", final_env.len());
 
-    let mut launcher =
-        ProcessLauncher::new(args[1].clone(), args[2..].to_vec()).with_env(final_env);
+    let mut launcher = Launcher::new(args[1].clone(), args[2..].to_vec()).with_env(final_env);
 
     debug!("Launching process");
     let child_pid = launcher.spawn()?;
@@ -68,7 +63,7 @@ fn main() -> Result<()> {
 
     // Run shutdown hooks
     debug!("Running shutdown hooks");
-    HookRunner::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
+    Hooks::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
 
     process::exit(exit_code);
 }

@@ -3,9 +3,9 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use std::process::Command;
 
-pub struct HookRunner;
+pub struct Hooks;
 
-impl HookRunner {
+impl Hooks {
     pub fn run_init(config: &Config, hook: Option<&str>) -> Result<()> {
         // // Apply NVIDIA tuning first (before user hooks)
         // if let Err(e) = Self::apply_nvidia_tuning(config) {
