@@ -21,6 +21,18 @@ fn main() -> Result<()> {
     let config = Config::load()?;
     info!("Configuration loaded successfully");
 
+    // NVIDIA GPU initialization
+    let uuid = config.tuning.nvidia.device_uuid.as_deref().unwrap_or("");
+    match NvGpu::init(uuid.to_string()) {
+        Ok(mut nv_gpu) => {
+            nv_gpu.log_gpu_info()?;
+        }
+        Err(e) => {
+            error!("Failed to initialize GPU: {:?}", e);
+            std::process::exit(1);
+        }
+    }
+
     // Run init hooks
     debug!("Running init hooks");
     Hooks::run_init(&config, config.hooks.init.as_deref())?;
@@ -49,17 +61,11 @@ fn main() -> Result<()> {
     }
 
     let final_env = env_builder.build();
-    info!("Built final environment with {} variables", final_env.len());
-
     let mut launcher = Launcher::new(args[1].clone(), args[2..].to_vec()).with_env(final_env);
 
+    // Start and wait for completion
     debug!("Launching process");
-    let child_pid = launcher.spawn()?;
-    info!("Process spawned with PID: {}", child_pid);
-
-    // Wait for process to complete
-    let exit_code = launcher.wait()?;
-    info!("Process exited with code: {}", exit_code);
+    let exit_code = launcher.execute()?;
 
     // Run shutdown hooks
     debug!("Running shutdown hooks");

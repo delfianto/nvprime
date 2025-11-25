@@ -2,6 +2,8 @@ use log::{debug, error, info};
 use serde::Deserialize;
 use std::collections::HashMap;
 
+const CONFIG_FILE: &str = "nvprime.conf";
+
 #[derive(Deserialize, Debug)]
 pub struct Config {
     #[serde(default)]
@@ -96,7 +98,7 @@ impl Config {
                 error!("Could not find system config directory");
                 anyhow::anyhow!("Could not find config directory")
             })?
-            .join("primers.conf");
+            .join(CONFIG_FILE);
 
         info!("Loading configuration from: {}", config_path.display());
 

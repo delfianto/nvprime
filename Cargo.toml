@@ -10,6 +10,7 @@ path = "src/bin/daemon.rs"
 name = "primers"
 version = "0.1.0"
 edition = "2024"
+default-run = "nvprime"
 authors = ["The quick brown fox jumps over the lazy dog"]
 description = "Minimalist NVIDIA PRIME render offload wrapper with config support"
 license = "MIT"
