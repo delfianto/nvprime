@@ -7,7 +7,7 @@ use std::process::Command;
 pub struct Privilege;
 
 impl Privilege {
-    /// Try to elevate, but continue if it fails (graceful degradation)
+    /// Try to elevate the privilege and handle any failure
     pub fn try_elevate() -> bool {
         if Self::is_root() {
             debug!("Already running with elevated privileges");
@@ -32,7 +32,7 @@ impl Privilege {
         }
     }
 
-    /// Check if we're running as root or with sufficient privileges
+    /// Check if we're running as root
     fn is_root() -> bool {
         unsafe { libc::geteuid() == 0 }
     }

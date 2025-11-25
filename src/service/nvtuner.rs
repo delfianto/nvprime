@@ -1,5 +1,5 @@
 use crate::common::config::NvGpuConfig;
-use crate::daemon::privilege::Privilege;
+use crate::service::privilege::Privilege;
 
 use log::{debug, info, warn};
 use nvml_wrapper::Nvml;
