@@ -21,8 +21,9 @@ impl NvGpu {
         let nvml = match Nvml::init() {
             Ok(n) => n,
             Err(e) => {
-                error!("Failed to initialize NVML: {}", e);
-                return Ok(None);
+                error!("FATAL: NVML initialization failed: {}", e);
+                error!("PRIME rendering unavailable. Game will run at ~3 FPS on iGPU.");
+                std::process::exit(1);
             }
         };
 
