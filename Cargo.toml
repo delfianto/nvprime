@@ -1,10 +1,10 @@
 [[bin]]
 name = "nvprime"
-path = "src/bin/client.rs"
+path = "src/bin/nvprime.rs"
 
 [[bin]]
 name = "nvprime-sys"
-path = "src/bin/daemon.rs"
+path = "src/bin/nvprime_sys.rs"
 
 [package]
 name = "primers"
