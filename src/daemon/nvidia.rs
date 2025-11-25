@@ -1,5 +1,5 @@
 use crate::common::config::NvGpuConfig;
-use crate::system::privilege::Privilege;
+use crate::daemon::privilege::Privilege;
 
 use log::{debug, info, warn};
 use nvml_wrapper::Nvml;
@@ -20,7 +20,7 @@ enum DeviceId {
 
 impl NvTuner {
     /// Initialize GpuTuner only if config is enabled
-    pub fn new_from_config(config: NvGpuConfig) -> Result<Option<Self>, NvmlError> {
+    pub fn from_config(config: NvGpuConfig) -> Result<Option<Self>, NvmlError> {
         if !config.enabled.unwrap_or(false) {
             debug!("NVIDIA tuning is disabled in config");
             return Ok(None);
