@@ -2,6 +2,8 @@ use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use std::process::{Child, Command, Stdio};
 
+use crate::runner::env_utils;
+
 pub struct Launcher {
     cmnd: String,
     args: Vec<String>,
@@ -32,14 +34,7 @@ impl Launcher {
     /// Spawns the process but does not wait for it.
     /// Returns the PID of the spawned process.
     pub fn spawn(&mut self) -> anyhow::Result<u32> {
-        debug!("Setting environment variables in parent context:");
-        for (key, value) in &self.vars {
-            unsafe {
-                std::env::set_var(key, value);
-                debug!("  Setting Vars: {} = {}", key, value);
-            }
-        }
-
+        env_utils::from_hashmap(&self.vars);
         debug!("Running process '{}' with args: {:?}", self.cmnd, self.args);
 
         let mut cmd = Command::new(&self.cmnd);
