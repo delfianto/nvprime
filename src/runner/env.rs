@@ -2,11 +2,11 @@ use crate::common::config::EnvValue;
 use log::debug;
 use std::collections::HashMap;
 
-pub struct EnvironmentBuilder {
+pub struct EnvBuilder {
     vars: HashMap<String, String>,
 }
 
-impl EnvironmentBuilder {
+impl EnvBuilder {
     pub fn new() -> Self {
         debug!("Creating new EnvironmentBuilder");
         Self {

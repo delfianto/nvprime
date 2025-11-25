@@ -1,4 +1,7 @@
 pub mod env;
 pub mod hooks;
-pub mod process;
-pub mod renice;
+pub mod launcher;
+
+pub use env::EnvBuilder;
+pub use hooks::Hooks;
+pub use launcher::Launcher;
