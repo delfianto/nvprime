@@ -113,21 +113,22 @@ impl NvGpu {
     ) -> Result<&mut Self, NvmlError> {
         let mut device = self.get_device()?;
         let device_name = device.name()?;
-        info!("Setting NVIDIA power limit for: {}", device_name);
 
-        let constraints = device.power_management_limit_constraints()?;
+        info!("Setting NVIDIA power limit for: {}", device_name);
+        let pm = device.power_management_limit_constraints()?;
+
         debug!(
             "Power constraints: min={}mW, max={}mW",
-            constraints.min_limit, constraints.max_limit
+            pm.min_limit, pm.max_limit
         );
 
         // Apply gaming profile (max power limit) if set_max_pwr is true
         if set_max_pwr.unwrap_or(false) {
-            device.set_power_management_limit(constraints.max_limit)?;
-            info!("Set power limit to maximum: {}mW", constraints.max_limit);
+            device.set_power_management_limit(pm.max_limit)?;
+            info!("Set power limit to maximum: {}mW", pm.max_limit);
         } else if let Some(requested_limit) = power_limit {
             // Apply custom power limit if specified
-            let clamped_limit = requested_limit.clamp(constraints.min_limit, constraints.max_limit);
+            let clamped_limit = requested_limit.clamp(pm.min_limit, pm.max_limit);
 
             if clamped_limit != requested_limit {
                 warn!(
