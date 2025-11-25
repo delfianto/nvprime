@@ -1,2 +1,2 @@
-pub mod nvidia;
+pub mod nvtuner;
 pub mod privilege;
