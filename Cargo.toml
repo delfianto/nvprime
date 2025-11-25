@@ -23,7 +23,9 @@ env_logger = "0.11"
 dirs = "5.0"
 zbus = "5.0"
 toml = "0.9"
+bytes = "1.0"
 anyhow = "1.0"
+bincode = "2.0"
 nvml-wrapper = "0.11"
 
 nix = { version = "0.30", features = ["user", "resource"] }
