@@ -1,6 +1,6 @@
 use log::{debug, error, info};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 const CONFIG_FILE: &str = "nvprime.conf";
 
@@ -91,6 +91,12 @@ impl EnvValue {
 }
 
 impl Config {
+    pub fn is_tuning_enabled(&self) -> bool {
+        self.tuning.process.enabled.unwrap_or(false)
+            || self.tuning.nvidia.enabled.unwrap_or(false)
+            || self.tuning.ryzen.enabled.unwrap_or(false)
+    }
+
     pub fn load() -> anyhow::Result<Self> {
         debug!("Locating configuration directory");
         let config_path = dirs::config_dir()
@@ -100,6 +106,10 @@ impl Config {
             })?
             .join(CONFIG_FILE);
 
+        Self::load_file(config_path)
+    }
+
+    pub fn load_file(config_path: PathBuf) -> anyhow::Result<Self> {
         info!("Loading configuration from: {}", config_path.display());
 
         let config_str = std::fs::read_to_string(&config_path).map_err(|e| {
@@ -132,11 +142,5 @@ impl Config {
         }
 
         Ok(config)
-    }
-
-    pub fn is_tuning_enabled(&self) -> bool {
-        self.tuning.process.enabled.unwrap_or(false)
-            || self.tuning.nvidia.enabled.unwrap_or(false)
-            || self.tuning.ryzen.enabled.unwrap_or(false)
     }
 }
