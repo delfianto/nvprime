@@ -1,3 +1,7 @@
+use primers::common::logging;
+use primers::service::privilege::Privilege;
+use std::process;
+
 const LOCK_FILE: &str = "/tmp/nvprime-sys.lock";
 
 struct NvPrimeDaemon {
@@ -14,5 +18,8 @@ impl NvPrimeDaemon {
 }
 
 pub fn main() {
+    logging::init(true);
     let daemon = NvPrimeDaemon::new();
+    Privilege::try_elevate();
+    process::exit(0);
 }
