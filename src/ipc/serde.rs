@@ -11,7 +11,7 @@ pub mod __macro_helpers {
 #[macro_export]
 macro_rules! impl_serialize {
     ($type:ty) => {
-        use $crate::serde::__macro_helpers::*;
+        use $crate::ipc::serde::__macro_helpers::*;
 
         impl $type {
             pub fn serialize(&self) -> Result<Bytes, EncodeError> {
@@ -53,6 +53,5 @@ macro_rules! impl_command {
 
     ($type:ty) => {
         $crate::impl_serialize!($type);
-        // $crate::impl_transform!($type);
     };
 }

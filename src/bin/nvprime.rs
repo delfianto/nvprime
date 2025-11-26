@@ -1,7 +1,7 @@
 use anyhow::Result;
 use log::{debug, error, info};
 use primers::common::{Config, NvGpu, logging};
-use primers::runner::{EnvBuilder, Hooks, Launcher};
+use primers::runner::{EnvBuilder, Launcher};
 use std::{path::Path, process};
 
 fn main() -> Result<()> {
@@ -34,8 +34,8 @@ fn main() -> Result<()> {
     }
 
     // Run init hooks
-    debug!("Running init hooks");
-    Hooks::run_init(&config, config.hooks.init.as_deref())?;
+    // debug!("Running init hooks");
+    // Hooks::run_init(&config, config.hooks.init.as_deref())?;
 
     // Get executable name
     let exe_name = get_executable_name(&args[1]);
@@ -68,8 +68,8 @@ fn main() -> Result<()> {
     let exit_code = launcher.execute()?;
 
     // Run shutdown hooks
-    debug!("Running shutdown hooks");
-    Hooks::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
+    // debug!("Running shutdown hooks");
+    // Hooks::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
 
     process::exit(exit_code);
 }
