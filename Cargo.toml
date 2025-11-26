@@ -29,6 +29,7 @@ anyhow = "1.0"
 bincode = "2.0"
 nvml-wrapper = "0.11"
 
+phf = { version = "0.13", features = ["macros"] }
 nix = { version = "0.30", features = ["user", "resource"] }
 clap = { version = "4.5", features = ["derive"] }
 tokio = { version = "1.48", features = ["full"] }

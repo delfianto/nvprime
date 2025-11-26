@@ -7,6 +7,12 @@ const CONFIG_FILE: &str = "nvprime.conf";
 #[derive(Deserialize, Debug)]
 pub struct Config {
     #[serde(default)]
+    pub cpu: CpuTune,
+
+    #[serde(default)]
+    pub gpu: GpuTune,
+
+    #[serde(default)]
     pub tuning: TuningConfig,
 
     #[serde(default)]
@@ -14,6 +20,101 @@ pub struct Config {
 
     #[serde(rename = "env")]
     pub environments: EnvironmentConfig,
+}
+
+/// Config section for AMD Zen EPP tuning
+#[derive(Deserialize, Debug)]
+pub struct CpuTune {
+    /// Flag for tuning status
+    pub amd_epp: bool,
+
+    /// Power profile when gaming
+    pub amd_epp_tune: String,
+
+    /// Default (baseline) power profile
+    pub amd_epp_base: String,
+}
+
+/// Default state for AMD Zen EPP tuning
+impl Default for CpuTune {
+    fn default() -> Self {
+        Self {
+            amd_epp: false,
+            amd_epp_tune: "performance".to_string(),
+            amd_epp_base: "balance_performance".to_string(),
+        }
+    }
+}
+
+/// Config section for NVIDIA GPU and any related tuning flag
+#[derive(Deserialize, Debug)]
+#[serde(default)]
+pub struct GpuTune {
+    /// Vulkan GPU name, this will be used to set the
+    /// DXVK_FILTER_DEVICE_NAME and VKD3D_FILTER_DEVICE_NAME
+    pub gpu_name: Option<String>,
+
+    /// NVIDIA GPU uuid, get it from `nvidia-smi -L`
+    pub gpu_uuid: Option<String>,
+
+    /// Path to Vulkan ICD JSON file, some game need this to be set
+    /// We set it with the default value just to be sure
+    pub gpu_vlk_icd: String,
+
+    /// Flag to enable power tuning
+    pub gpu_tunings: bool,
+
+    /// Set the GPU power limit to highest
+    pub set_max_pwr: bool,
+
+    /// Set custom power limit for the GPU
+    pub pwr_limit_tune: Option<u32>,
+}
+
+/// Default state for NVIDIA GPU tuning
+impl Default for GpuTune {
+    fn default() -> Self {
+        Self {
+            gpu_name: None,
+            gpu_uuid: None,
+            gpu_vlk_icd: "/usr/share/vulkan/icd.d/nvidia_icd.json".to_string(),
+            gpu_tunings: false,
+            set_max_pwr: false,
+            pwr_limit_tune: None,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(default)]
+pub struct SysTune {
+    /// Enable or disable system-level tuning
+    pub enabled: bool,
+
+    /// IO priority level for processes (0-7, lower is higher priority)
+    /// Uses ionice best-effort class where 0 is highest, 7 is lowest
+    /// Default: 4 (middle priority)
+    pub proc_ioprio: i32,
+
+    /// Nice value adjustment for process CPU priority (-20 to 19)
+    /// Negative values increase priority (root only), positive values decrease it
+    /// Default: 0 (no adjustment)
+    pub proc_renice: i32,
+
+    /// Enable split-lock detection mitigation hack
+    /// Helps prevent performance degradation from split-lock abuse by game engine
+    pub splitlock_hack: bool,
+}
+
+impl Default for SysTune {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            proc_ioprio: 4,
+            proc_renice: 0,
+            splitlock_hack: false,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Default)]
