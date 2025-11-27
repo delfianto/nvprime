@@ -20,7 +20,7 @@ const WINE_DLLS: &str = "WINEDLLOVERRIDES";
 static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
     // MangoHud preset
     "MANGOHUD" => "0",
-    "MANGOHUD_CONFIG" => "preset=2",
+    "MANGOHUD_CONFIG" => "preset=1",
 
     // Proton flags
     "PROTON_LOG" => "0",
