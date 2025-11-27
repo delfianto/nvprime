@@ -4,7 +4,7 @@ use crate::common::Config;
 use crate::common::config::EnvValue;
 use log::debug;
 use phf::{Map, phf_map};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::env;
 
 const HUD: &str = "MANGOHUD";
@@ -42,7 +42,7 @@ static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
 };
 
 pub struct EnvBuilder {
-    vars: HashMap<String, String>,
+    vars: BTreeMap<String, String>,
 }
 
 impl EnvBuilder {
@@ -64,7 +64,7 @@ impl EnvBuilder {
         self.set_str(key, if enabled { "1" } else { "0" })
     }
 
-    pub fn with_config(mut self, config: &Config, exe_name: &String) -> HashMap<String, String> {
+    pub fn with_config(mut self, config: &Config, exe_name: &String) -> BTreeMap<String, String> {
         debug!("Initializing environment values for game: {}", exe_name);
 
         // `config.gpu.gpu_name` is an `Option<String>` and since `String`
@@ -134,7 +134,7 @@ impl EnvBuilder {
     }
 
     /// Build the final environment map
-    pub fn build(self) -> HashMap<String, String> {
+    pub fn build(self) -> BTreeMap<String, String> {
         debug!(
             "Building final environment map with {} variables",
             self.vars.len()
@@ -143,7 +143,7 @@ impl EnvBuilder {
     }
 
     /// Merge global environment variables from config
-    pub fn merge_global(&mut self, global: &HashMap<String, EnvValue>) {
+    pub fn merge_global(&mut self, global: &BTreeMap<String, EnvValue>) {
         debug!("Merging {} global environment variables", global.len());
         for (key, value) in global {
             let value_str = value.to_string();
@@ -153,7 +153,7 @@ impl EnvBuilder {
     }
 
     /// Merge executable-specific environment variables
-    pub fn merge_executable(&mut self, exe_vars: Option<&HashMap<String, EnvValue>>) {
+    pub fn merge_executable(&mut self, exe_vars: Option<&BTreeMap<String, EnvValue>>) {
         if let Some(vars) = exe_vars {
             debug!(
                 "Merging {} executable-specific environment variables",
@@ -202,7 +202,7 @@ pub fn from_slices(env_vars: &[(&str, &str)]) {
     }
 }
 
-pub fn from_hashmap(env_vars: &HashMap<String, String>) {
+pub fn from_collection(env_vars: &BTreeMap<String, String>) {
     debug!("Setting environment variables in parent context:");
 
     for (key, val) in env_vars {
