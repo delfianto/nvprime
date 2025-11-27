@@ -16,7 +16,7 @@ enum GpuId {
 
 impl NvGpu {
     /// Initialize NVIDIA GPU support
-    pub fn init(uuid: String) -> Result<Self, NvmlError> {
+    pub fn init(uuid: Option<String>) -> Result<Self, NvmlError> {
         debug!("Starting NVML initialization");
         let nvml = Nvml::init().map_err(|e| {
             error!("FATAL: NVML initialization failed: {}", e);
@@ -24,14 +24,15 @@ impl NvGpu {
             e
         })?;
 
-        let device_identifier = if !uuid.is_empty() {
-            GpuId::Uuid(uuid.clone())
-        } else {
-            debug!("Will use device index 0");
-            GpuId::Index(0)
+        let gpu_id = match uuid {
+            Some(uuid_str) if !uuid_str.is_empty() => GpuId::Uuid(uuid_str),
+            _ => {
+                debug!("Will use device index 0");
+                GpuId::Index(0)
+            }
         };
 
-        let device = match &device_identifier {
+        let device = match &gpu_id {
             GpuId::Uuid(uuid) => nvml.device_by_uuid(uuid.as_str())?,
             GpuId::Index(idx) => nvml.device_by_index(*idx)?,
         };
@@ -39,10 +40,7 @@ impl NvGpu {
         let device_name = device.name()?;
         info!("Initialized NVML for {}", device_name);
 
-        Ok(Self {
-            nvml,
-            gpu_id: device_identifier,
-        })
+        Ok(Self { nvml, gpu_id })
     }
 
     /// Get device (helper method)

@@ -22,8 +22,7 @@ fn main() -> Result<()> {
     info!("Configuration loaded successfully");
 
     // NVIDIA GPU initialization
-    let uuid = config.tuning.nvidia.device_uuid.as_deref().unwrap_or("");
-    match NvGpu::init(uuid.to_string()) {
+    match NvGpu::init(config.gpu.gpu_uuid.clone()) {
         Ok(mut nv_gpu) => {
             nv_gpu.log_gpu_info()?;
         }
@@ -39,28 +38,29 @@ fn main() -> Result<()> {
 
     // Get executable name
     let exe_name = get_executable_name(&args[1]);
-    debug!("Extracted executable name: '{}'", exe_name);
+    debug!("Detected executable name: '{}'", exe_name);
 
-    let mut env_builder = EnvBuilder::new();
+    let env_builder = EnvBuilder::new();
 
     // Merge global environment variables
-    debug!(
-        "Applying global environment variables: {} vars",
-        config.environments.global.len()
-    );
-    env_builder.merge_global(&config.environments.global);
+    // debug!(
+    //     "Applying global environment variables: {} vars",
+    //     config.environments.global.len()
+    // );
+    // env_builder.merge_global(&config.environments.global);
 
     // Merge executable-specific environment variables
-    if let Some(exe_config) = config.environments.executables.get(&exe_name) {
-        info!("Found executable-specific configuration for '{}'", exe_name);
-        debug!("Applying {} executable-specific env vars", exe_config.len());
-        env_builder.merge_executable(Some(exe_config));
-    } else {
-        debug!("No executable-specific configuration for '{}'", exe_name);
-        env_builder.merge_executable(None);
-    }
+    // if let Some(exe_config) = config.environments.executables.get(&exe_name) {
+    //     info!("Found executable-specific configuration for '{}'", exe_name);
+    //     debug!("Applying {} executable-specific env vars", exe_config.len());
+    //     env_builder.merge_executable(Some(exe_config));
+    // } else {
+    //     debug!("No executable-specific configuration for '{}'", exe_name);
+    //     env_builder.merge_executable(None);
+    // }
 
-    let final_env = env_builder.build();
+    debug!("Launching process");
+    let final_env = env_builder.with_config(&config, &exe_name);
     let mut launcher = Launcher::new(args[1].clone(), args[2..].to_vec()).with_env(final_env);
 
     // Start and wait for completion
