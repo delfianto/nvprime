@@ -200,7 +200,7 @@ fn detect_game_info(args: &[String]) -> GameInfo {
     }
 }
 
-/// Helper to extract filename stem, no changes needed
+/// Helper to extract filename stem
 fn extract_stem(path: &str) -> String {
     Path::new(path)
         .file_stem()
