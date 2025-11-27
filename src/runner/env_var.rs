@@ -7,8 +7,9 @@ use phf::{Map, phf_map};
 use std::collections::BTreeMap;
 use std::env;
 
-const HUD: &str = "MANGOHUD";
 const LOG: &str = "PROTON_LOG";
+const HUD: &str = "MANGOHUD";
+const HUD_CFG: &str = "MANGOHUD_CONFIG";
 const NTSYNC: &str = "PROTON_USE_NTSYNC";
 const WAYLAND: &str = "PROTON_ENABLE_WAYLAND";
 const DXVK_GPU: &str = "DXVK_FILTER_DEVICE_NAME";
@@ -17,8 +18,11 @@ const WINE_DLLS: &str = "WINEDLLOVERRIDES";
 
 /// Default values for environment variables
 static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
-    // Various flags for proton and mangohud
+    // MangoHud preset
     "MANGOHUD" => "0",
+    "MANGOHUD_CONFIG" => "preset=2",
+
+    // Proton flags
     "PROTON_LOG" => "0",
     "PROTON_USE_NTSYNC" => "0",
     "PROTON_ENABLE_WAYLAND" => "0",
@@ -84,6 +88,10 @@ impl EnvBuilder {
             self.set_bool(LOG, game.proton_log);
             self.set_bool(NTSYNC, game.proton_ntsync);
             self.set_bool(WAYLAND, game.proton_wayland);
+
+            if let Some(hud_cfg) = &game.mangohud_conf {
+                self.set_str(HUD_CFG, hud_cfg);
+            }
 
             if let Some(dll_overrides) = &game.wine_dll_overrides {
                 self.set_str(WINE_DLLS, dll_overrides);
