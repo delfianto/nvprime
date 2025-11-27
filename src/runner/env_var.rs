@@ -1,11 +1,8 @@
-#![allow(dead_code)]
-
 use crate::common::Config;
 use crate::common::config::EnvValue;
 use log::debug;
 use phf::{Map, phf_map};
 use std::collections::BTreeMap;
-use std::env;
 
 const LOG: &str = "PROTON_LOG";
 const HUD: &str = "MANGOHUD";
@@ -204,41 +201,5 @@ impl EnvBuilder {
         } else {
             debug!("No executable-specific environment variables to merge");
         }
-    }
-}
-
-const EMPTY_STRING: &str = "EMPTY_STRING";
-const NOT_PRESENT: &str = "NOT_PRESENT";
-
-pub fn get_value(key: &str) -> String {
-    match env::var(key) {
-        Ok(val) => {
-            if val.is_empty() {
-                EMPTY_STRING.to_string()
-            } else {
-                val
-            }
-        }
-        Err(_) => NOT_PRESENT.to_string(),
-    }
-}
-
-pub fn from_strings(key: &str, val: &str) {
-    unsafe {
-        env::set_var(key, val);
-        debug!("  Setting Vars: {} = {}", key, val);
-    }
-}
-
-pub fn from_slices(env_vars: &[(&str, &str)]) {
-    for (key, val) in env_vars {
-        from_strings(key, val);
-    }
-}
-
-pub fn from_collection(env_vars: &BTreeMap<String, String>) {
-    debug!("Setting environment variables:");
-    for (key, val) in env_vars {
-        from_strings(key, val);
     }
 }
