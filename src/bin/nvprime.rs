@@ -1,25 +1,24 @@
 use anyhow::Result;
 use log::{debug, error, info};
 use primers::common::{Config, NvGpu, logging};
-use primers::runner::{EnvBuilder, Launcher};
-use std::{path::Path, process};
+use primers::runner::Launcher;
 
 fn main() -> Result<()> {
     logging::init(true)?;
-    let args: Vec<String> = std::env::args().collect();
+    let args: Vec<String> = std::env::args().skip(1).collect();
 
-    if args.len() < 2 {
+    if args.is_empty() {
         error!("Usage: nvprime <executable> [args...]");
-        process::exit(1);
+        std::process::exit(1);
     }
 
     info!("Starting nvprime");
-    debug!("Command line arguments: {:?}", args);
+    // debug!("Command line arguments: {:?}", args);
 
     // Load configuration
-    debug!("Loading configuration");
+    // debug!("Loading configuration...");
     let config = Config::load()?;
-    info!("Configuration loaded successfully");
+    // info!("Configuration loaded successfully");
 
     // NVIDIA GPU initialization
     match NvGpu::init(config.gpu.gpu_uuid.clone()) {
@@ -37,10 +36,10 @@ fn main() -> Result<()> {
     // Hooks::run_init(&config, config.hooks.init.as_deref())?;
 
     // Get executable name
-    let exe_name = get_executable_name(&args[1]);
-    debug!("Detected executable name: '{}'", exe_name);
+    // let exe_name = get_executable_name(&args);
+    // debug!("Detected executable name: '{}'", exe_name);
 
-    let env_builder = EnvBuilder::new();
+    // let env_builder = EnvBuilder::new();
 
     // Merge global environment variables
     // debug!(
@@ -59,25 +58,17 @@ fn main() -> Result<()> {
     //     env_builder.merge_executable(None);
     // }
 
-    debug!("Launching process");
-    let final_env = env_builder.with_config(&config, &exe_name);
-    let mut launcher = Launcher::new(args[1].clone(), args[2..].to_vec()).with_env(final_env);
+    debug!("Launching process...");
+    // let final_env = env_builder.with_config(&config, &exe_name);
+    let mut launcher = Launcher::new(args);
 
     // Start and wait for completion
-    debug!("Launching process");
+    // debug!("Launching process");
     let exit_code = launcher.execute()?;
 
     // Run shutdown hooks
     // debug!("Running shutdown hooks");
     // Hooks::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
 
-    process::exit(exit_code);
-}
-
-fn get_executable_name(path: &str) -> String {
-    Path::new(path)
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| path.to_string())
+    std::process::exit(exit_code);
 }
