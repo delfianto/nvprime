@@ -15,7 +15,7 @@ const WINE_DLLS: &str = "WINEDLLOVERRIDES";
 
 /// Default values for environment variables
 static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
-    // MangoHud preset
+    // MangoHud settings
     "MANGOHUD" => "0",
     "MANGOHUD_CONFIG" => "preset=1",
 
@@ -32,20 +32,9 @@ static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
     "PROTON_USE_NTSYNC" => "0",
     "PROTON_ENABLE_WAYLAND" => "0",
     "PROTON_SET_GAME_DRIVE" => "1",
-    "PROTON_FORCE_LARGE_ADDRESS_AWARE" => "1",
-    "PROTON_PULSE_LOWLATENCY" => "1",
-    "PULSE_LATENCY_MSEC" =>  "100",
-
-    // NVIDIA specific tuneables
-    "PROTON_HIDE_NVIDIA_GPU" => "0",
-    "PROTON_ENABLE_NGX_UPDATER" => "1",
-    "PROTON_ENABLE_NVAPI" => "1",
 
     // NVIDIA DLSS settings from dxvk-nvapi
     "DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS" => "DLSSIndicator=0,DLSSGIndicator=0",
-
-    "DXVK_NVAPI_DRS_NGX_DLSS_FG_OVERRIDE" => "on",
-    "DXVK_NVAPI_DRS_NGX_DLSSG_MULTI_FRAME_COUNT" => "2",
 
     "DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE" => "on",
     "DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION" => "render_preset_latest",
