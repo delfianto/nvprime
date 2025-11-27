@@ -1,7 +1,12 @@
+#![allow(dead_code)]
+
 use log::{debug, error, info, warn};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
+
+use crate::common::Config;
+use crate::runner::EnvBuilder;
 
 #[derive(Debug, Clone)]
 struct GameInfo {
@@ -24,24 +29,20 @@ pub struct Launcher {
 }
 
 impl Launcher {
-    pub fn new(args: Vec<String>) -> Self {
+    pub fn new(args: Vec<String>, config: &Config) -> Self {
         let info = detect_game_info(&args);
+        let vars = EnvBuilder::new().with_config(config, &info.exec);
+
         debug!("Raw argument from Steam: {:?}", args);
         debug!("Initializing process launcher for game: {:?}", info);
 
         Launcher {
-            info: info,
+            info,
             exec: args[0].clone(),
             args: args[1..].to_vec(),
-            vars: BTreeMap::new(),
+            vars,
             child: None,
         }
-    }
-
-    pub fn with_env(mut self, env_vars: BTreeMap<String, String>) -> Self {
-        debug!("Adding {} environment variables to process", env_vars.len());
-        self.vars = env_vars;
-        self
     }
 
     /// Spawns the process but does not wait for it.
