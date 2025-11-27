@@ -1,7 +1,7 @@
 use anyhow::Result;
 use log::{debug, error, info};
-use primers::common::{Config, NvGpu, logging};
-use primers::runner::Launcher;
+use nvprime::common::{Config, NvGpu, logging};
+use nvprime::runner::Launcher;
 
 fn main() -> Result<()> {
     logging::init(true)?;

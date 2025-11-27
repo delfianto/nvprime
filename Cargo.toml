@@ -7,7 +7,7 @@ name = "nvprime-sys"
 path = "src/bin/nvprime_sys.rs"
 
 [package]
-name = "primers"
+name = "nvprime"
 version = "0.1.0"
 edition = "2024"
 default-run = "nvprime"
