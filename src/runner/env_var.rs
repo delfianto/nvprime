@@ -22,10 +22,39 @@ static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
     "MANGOHUD" => "0",
     "MANGOHUD_CONFIG" => "preset=1",
 
-    // Proton flags
+    // Proton logging flags
     "PROTON_LOG" => "0",
+    "DXVK_LOG_LEVEL" => "info",
+    "DXVK_NVAPI_LOG_LEVEL" => "info",
+    "DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL" => "info",
+    "VKD3D_DEBUG" => "info",
+    "VKD3D_SHADER_DEBUG" => "info",
+    "WINEDEBUG" => "+err,+warn,-all",
+
+    // Proton tuneables
     "PROTON_USE_NTSYNC" => "0",
     "PROTON_ENABLE_WAYLAND" => "0",
+    "PROTON_SET_GAME_DRIVE" => "1",
+    "PROTON_FORCE_LARGE_ADDRESS_AWARE" => "1",
+    "PROTON_PULSE_LOWLATENCY" => "1",
+    "PULSE_LATENCY_MSEC" =>  "100",
+
+    // NVIDIA specific tuneables
+    "PROTON_HIDE_NVIDIA_GPU" => "0",
+    "PROTON_ENABLE_NGX_UPDATER" => "1",
+    "PROTON_ENABLE_NVAPI" => "1",
+
+    // NVIDIA DLSS settings from dxvk-nvapi
+    "DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS" => "DLSSIndicator=0,DLSSGIndicator=0",
+
+    "DXVK_NVAPI_DRS_NGX_DLSS_FG_OVERRIDE" => "on",
+    "DXVK_NVAPI_DRS_NGX_DLSSG_MULTI_FRAME_COUNT" => "2",
+
+    "DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE" => "on",
+    "DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION" => "render_preset_latest",
+
+    "DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE" => "on",
+    "DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION" => "render_preset_latest",
 
     // The actual flag for PRIME rendering offload
     "__NV_PRIME_RENDER_OFFLOAD" => "1",
