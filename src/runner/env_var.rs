@@ -186,29 +186,22 @@ pub fn get_value(key: &str) -> String {
     }
 }
 
-pub fn from_strings(env_vars: &(&str, &str)) {
+pub fn from_strings(key: &str, val: &str) {
     unsafe {
-        env::set_var(env_vars.0, env_vars.1);
-        debug!("  Setting Vars: {} = {}", env_vars.0, env_vars.1);
+        env::set_var(key, val);
+        debug!("  Setting Vars: {} = {}", key, val);
     }
 }
 
 pub fn from_slices(env_vars: &[(&str, &str)]) {
     for (key, val) in env_vars {
-        unsafe {
-            env::set_var(key, val);
-            debug!("  Setting Vars: {} = {}", key, val);
-        }
+        from_strings(key, val);
     }
 }
 
 pub fn from_collection(env_vars: &BTreeMap<String, String>) {
-    debug!("Setting environment variables in parent context:");
-
+    debug!("Setting environment variables:");
     for (key, val) in env_vars {
-        unsafe {
-            env::set_var(key, val);
-            debug!("  Setting Vars: {} = {}", key, val);
-        }
+        from_strings(key, val);
     }
 }
