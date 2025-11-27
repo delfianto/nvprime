@@ -116,66 +116,88 @@ impl Launcher {
 }
 
 /// Detect game information from raw args
-fn detect_game_info(raw_args: &[String]) -> GameInfo {
-    if raw_args.is_empty() {
-        return GameInfo {
-            app_id: 0, // default to zero when no args
-            exec: "unknown".to_string(),
-            args: Vec::new(),
-        };
-    }
+fn detect_game_info(args: &[String]) -> GameInfo {
+    debug!("Detecting game info from args: {:?}", args);
 
-    let app_id = extract_app_id(raw_args);
-    let exec = detect_executable_name(raw_args);
-    let args = raw_args[1..].to_vec();
+    // Extract Steam AppId if present
+    let app_id = args
+        .iter()
+        .find_map(|arg| {
+            arg.strip_prefix("AppId=")
+                .and_then(|id_str| id_str.parse::<u32>().ok())
+        })
+        .unwrap_or_else(|| {
+            debug!("Steam AppId not detected, defaulting to 0");
+            0
+        });
 
-    GameInfo { app_id, exec, args }
-}
-
-fn detect_executable_name(args: &[String]) -> String {
-    debug!("Detecting executable from args: {:?}", args);
-
-    // #1 Get the .exe after "waitforexitandrun"
-    for (i, arg) in args.iter().enumerate() {
-        if arg == "waitforexitandrun" {
-            for next_arg in &args[i + 1..] {
-                if next_arg.ends_with(".exe") {
-                    let name = extract_stem(next_arg);
-                    debug!("Detected game '{}' via waitforexitandrun", name);
-                    return name;
-                }
+    // Detect executable and indices of remaining args
+    let (exec, remaining_indices) = {
+        // #1 look for .exe after "waitforexitandrun"
+        if let Some(i) = args.iter().position(|arg| arg == "waitforexitandrun") {
+            if let Some((j, exe_arg)) = args
+                .iter()
+                .enumerate()
+                .skip(i + 1)
+                .find(|(_, arg)| arg.ends_with(".exe"))
+            {
+                let name = extract_stem(exe_arg);
+                debug!(
+                    "Detected game '{}' via waitforexitandrun at index {}, remaining: {:?}",
+                    name,
+                    j + 1,
+                    &args[j + 1..]
+                );
+                (name, (j + 1..args.len()).collect())
+            } else {
+                // No .exe found after waitforexitandrun, fall back to other methods below
+                (String::new(), Vec::new())
             }
+        } else {
+            (String::new(), Vec::new())
         }
-    }
+    };
 
-    // #2 any .exe, prefer last
-    for arg in args.iter().rev() {
-        if arg.ends_with(".exe") {
-            let name = extract_stem(arg);
-            debug!("Detected game '{}' via .exe scan", name);
-            return name;
+    // If exec not found in strategy #1, try other methods
+    let (exec, remaining_indices) = if exec.is_empty() {
+        // #2 any .exe, prefer last
+        if let Some((i_rev, exe_arg)) = args
+            .iter()
+            .rev()
+            .enumerate()
+            .find(|(_, arg)| arg.ends_with(".exe"))
+        {
+            let actual_index = args.len() - 1 - i_rev;
+            let name = extract_stem(exe_arg);
+            debug!(
+                "Detected game '{}' via .exe scan at index {}, remaining: {:?}",
+                name,
+                actual_index,
+                &args[actual_index + 1..]
+            );
+            (name, (actual_index + 1..args.len()).collect())
+        } else {
+            // #3 fallback to first arg
+            let name = extract_stem(&args[0]);
+            debug!(
+                "Using fallback executable name '{}' at index 0, remaining: {:?}",
+                name,
+                &args[1..]
+            );
+            (name, (1..args.len()).collect())
         }
+    } else {
+        (exec, remaining_indices)
+    };
+
+    // Collect actual remaining argument strings from indices
+    let remaining_args = remaining_indices.iter().map(|&i| args[i].clone()).collect();
+
+    GameInfo {
+        app_id,
+        exec,
+        args: remaining_args,
     }
-
-    // #3 If none worked, fallback to first arg filename
-    let fallback = extract_stem(&args[0]);
-    debug!("Using fallback executable name: {}", fallback);
-    fallback
-}
-
-/// Extract Steam AppId if present, else default to zero
-fn extract_app_id(args: &[String]) -> u32 {
-    for arg in args {
-        if let Some(appid_str) = arg.strip_prefix("AppId=") {
-            if let Ok(appid) = appid_str.parse::<u32>() {
-                debug!("Detected Steam AppId: {}", appid);
-                return appid;
-            }
-        }
-    }
-
-    debug!("Steam AppId not detected, defaulting to 0");
-    0
 }
 
 /// Helper to extract filename stem, no changes needed
