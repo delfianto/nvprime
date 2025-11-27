@@ -1,5 +1,5 @@
 use log::{debug, error, info, warn};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::process::{Child, Command, Stdio};
 
 use crate::runner::env_var;
@@ -7,7 +7,7 @@ use crate::runner::env_var;
 pub struct Launcher {
     cmnd: String,
     args: Vec<String>,
-    vars: HashMap<String, String>,
+    vars: BTreeMap<String, String>,
     child: Option<Child>,
 }
 
@@ -17,12 +17,12 @@ impl Launcher {
         Launcher {
             cmnd: cmd,
             args,
-            vars: HashMap::new(),
+            vars: BTreeMap::new(),
             child: None,
         }
     }
 
-    pub fn with_env(mut self, env_vars: HashMap<String, String>) -> Self {
+    pub fn with_env(mut self, env_vars: BTreeMap<String, String>) -> Self {
         debug!(
             "Adding environment variables to process, count: {}",
             env_vars.len()
@@ -34,7 +34,7 @@ impl Launcher {
     /// Spawns the process but does not wait for it.
     /// Returns the PID of the spawned process.
     pub fn spawn(&mut self) -> anyhow::Result<u32> {
-        env_var::from_hashmap(&self.vars);
+        env_var::from_collection(&self.vars);
         debug!("Running process '{}' with args: {:?}", self.cmnd, self.args);
 
         let mut cmd = Command::new(&self.cmnd);
@@ -62,7 +62,11 @@ impl Launcher {
     /// Waits for the spawned process to finish and returns its exit code.
     pub fn wait(&mut self) -> anyhow::Result<i32> {
         if let Some(child) = &mut self.child {
-            debug!("Waiting process '{}' with PID {}", self.cmnd, child.id());
+            debug!(
+                "Waiting process '{}' with PID {} to finish",
+                self.cmnd,
+                child.id()
+            );
             let status = child.wait().map_err(|e| {
                 error!("Failed waiting on process PID {}: {}", child.id(), e);
                 anyhow::anyhow!(e)
