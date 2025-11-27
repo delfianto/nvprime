@@ -1,11 +1,21 @@
 #![allow(dead_code)]
 
+use crate::common::Config;
 use crate::common::config::EnvValue;
 use log::debug;
 use phf::{Map, phf_map};
 use std::collections::HashMap;
 use std::env;
 
+const HUD: &str = "MANGOHUD";
+const LOG: &str = "PROTON_LOG";
+const NTSYNC: &str = "PROTON_USE_NTSYNC";
+const WAYLAND: &str = "PROTON_ENABLE_WAYLAND";
+const DXVK_GPU: &str = "DXVK_FILTER_DEVICE_NAME";
+const VKD3D_GPU: &str = "VKD3D_FILTER_DEVICE_NAME";
+const WINE_DLLS: &str = "WINEDLLOVERRIDES";
+
+/// Default values for environment variables
 static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
     // Various flags for proton and mangohud
     "MANGOHUD" => "0",
@@ -46,38 +56,81 @@ impl EnvBuilder {
         }
     }
 
+    fn set_str(&mut self, key: &str, val: &str) {
+        self.vars.insert(key.to_string(), val.to_string());
+    }
+
+    fn set_bool(&mut self, key: &str, enabled: bool) {
+        self.set_str(key, if enabled { "1" } else { "0" })
+    }
+
+    pub fn with_config(mut self, config: &Config, exe_name: &String) -> HashMap<String, String> {
+        debug!("Initializing environment values for game: {}", exe_name);
+
+        // `config.gpu.gpu_name` is an `Option<String>` and since `String`
+        // does not implement `Copy` we need to explicitly use reference
+        // when performing pattern matching.
+        if let Some(device) = &config.gpu.gpu_name {
+            let slice = device.as_str();
+            self.set_str(DXVK_GPU, slice);
+            self.set_str(VKD3D_GPU, slice);
+        }
+
+        // `config.game` is a `HashMap`, the `get` function will return
+        // `Option<&T> which already a reference itself, thus we do not
+        // need to access config through its reference.
+        if let Some(game) = config.game.get(exe_name) {
+            self.set_bool(HUD, game.mangohud);
+            self.set_bool(LOG, game.proton_log);
+            self.set_bool(NTSYNC, game.proton_ntsync);
+            self.set_bool(WAYLAND, game.proton_wayland);
+
+            if let Some(dll_overrides) = &game.wine_dll_overrides {
+                self.set_str(WINE_DLLS, dll_overrides);
+            }
+        }
+
+        if let Some(env) = config.env.get(exe_name) {
+            for (key, val) in env {
+                self.vars.insert(key.to_string(), val.to_string());
+            }
+        }
+
+        self.build()
+    }
+
     pub fn with_env(mut self, key: &str, val: &str) -> Self {
-        self.vars.insert(key.into(), val.into());
+        self.set_str(key, val);
         self
     }
 
-    pub fn with_bool(self, key: &str, enabled: bool) -> Self {
-        self.with_env(key.into(), if enabled { "1" } else { "0" })
+    pub fn with_bool(mut self, key: &str, enabled: bool) -> Self {
+        self.set_bool(key, enabled);
+        self
     }
 
     pub fn with_gpu_name(self, device: &str) -> Self {
-        self.with_env("DXVK_FILTER_DEVICE_NAME", device)
-            .with_env("VKD3D_FILTER_DEVICE_NAME", device)
+        self.with_env(DXVK_GPU, device).with_env(VKD3D_GPU, device)
     }
 
     pub fn with_mangohud(self, enabled: bool) -> Self {
-        self.with_bool("MANGOHUD", enabled)
+        self.with_bool(HUD, enabled)
     }
 
-    pub fn with_proton_log(self, enabled: bool) -> Self {
-        self.with_bool("PROTON_LOG", enabled)
+    pub fn with_log(self, enabled: bool) -> Self {
+        self.with_bool(LOG, enabled)
     }
 
-    pub fn with_proton_ntsync(self, enabled: bool) -> Self {
-        self.with_bool("PROTON_USE_NTSYNC", enabled)
+    pub fn with_ntsync(self, enabled: bool) -> Self {
+        self.with_bool(NTSYNC, enabled)
     }
 
-    pub fn with_proton_wayland(self, enabled: bool) -> Self {
-        self.with_bool("PROTON_ENABLE_WAYLAND", enabled)
+    pub fn with_wayland(self, enabled: bool) -> Self {
+        self.with_bool(WAYLAND, enabled)
     }
 
-    pub fn with_wine_dll_overrides(self, value: &str) -> Self {
-        self.with_env("WINEDLLOVERRIDES", value)
+    pub fn with_dll_overrides(self, value: &str) -> Self {
+        self.with_env(WINE_DLLS, value)
     }
 
     /// Build the final environment map
@@ -106,10 +159,10 @@ impl EnvBuilder {
                 "Merging {} executable-specific environment variables",
                 vars.len()
             );
-            for (key, value) in vars {
-                let value_str = value.to_string();
-                debug!("  Adding executable-specific: {} = {}", key, value_str);
-                self.vars.insert(key.clone(), value_str);
+            for (key, val) in vars {
+                let str = val.to_string();
+                debug!("  Adding executable-specific: {} = {}", key, str);
+                self.vars.insert(key.clone(), str);
             }
         } else {
             debug!("No executable-specific environment variables to merge");

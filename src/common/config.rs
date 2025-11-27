@@ -13,20 +13,24 @@ pub struct Config {
     pub gpu: GpuTune,
 
     #[serde(default)]
-    pub tuning: TuningConfig,
+    pub sys: SysTune,
+
+    #[serde(flatten)]
+    pub env: HashMap<String, HashMap<String, EnvValue>>,
 
     #[serde(default)]
-    pub hooks: HooksConfig,
+    pub game: HashMap<String, GameConfig>,
 
-    #[serde(rename = "env")]
-    pub environments: EnvironmentConfig,
+    #[serde(default)]
+    pub hook: HooksConfig,
 }
 
 /// Config section for AMD Zen EPP tuning
 #[derive(Deserialize, Debug)]
 pub struct CpuTune {
     /// Flag for tuning status
-    pub amd_epp: bool,
+    #[serde(rename = "cpu_tuning")]
+    pub enabled: bool,
 
     /// Power profile when gaming
     pub amd_epp_tune: String,
@@ -39,7 +43,7 @@ pub struct CpuTune {
 impl Default for CpuTune {
     fn default() -> Self {
         Self {
-            amd_epp: false,
+            enabled: false,
             amd_epp_tune: "performance".to_string(),
             amd_epp_base: "balance_performance".to_string(),
         }
@@ -50,6 +54,10 @@ impl Default for CpuTune {
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 pub struct GpuTune {
+    /// Flag to enable power tuning
+    #[serde(rename = "gpu_tuning")]
+    pub enabled: bool,
+
     /// Vulkan GPU name, this will be used to set the
     /// DXVK_FILTER_DEVICE_NAME and VKD3D_FILTER_DEVICE_NAME
     pub gpu_name: Option<String>,
@@ -60,9 +68,6 @@ pub struct GpuTune {
     /// Path to Vulkan ICD JSON file, some game need this to be set
     /// We set it with the default value just to be sure
     pub gpu_vlk_icd: String,
-
-    /// Flag to enable power tuning
-    pub gpu_tunings: bool,
 
     /// Set the GPU power limit to highest
     pub set_max_pwr: bool,
@@ -75,10 +80,10 @@ pub struct GpuTune {
 impl Default for GpuTune {
     fn default() -> Self {
         Self {
+            enabled: false,
             gpu_name: None,
             gpu_uuid: None,
             gpu_vlk_icd: "/usr/share/vulkan/icd.d/nvidia_icd.json".to_string(),
-            gpu_tunings: false,
             set_max_pwr: false,
             pwr_limit_tune: None,
         }
@@ -89,6 +94,7 @@ impl Default for GpuTune {
 #[serde(default)]
 pub struct SysTune {
     /// Enable or disable system-level tuning
+    #[serde(rename = "sys_tuning")]
     pub enabled: bool,
 
     /// IO priority level for processes (0-7, lower is higher priority)
@@ -118,51 +124,31 @@ impl Default for SysTune {
 }
 
 #[derive(Deserialize, Debug, Default)]
-pub struct TuningConfig {
-    #[serde(default)]
-    pub process: ProcConfig,
-
-    #[serde(default)]
-    pub nvidia: NvGpuConfig,
-
-    #[serde(default)]
-    pub ryzen: AmdZenConfig,
-}
-
-#[derive(Clone, Deserialize, Debug, Default)]
-pub struct ProcConfig {
-    pub enabled: Option<bool>,
-    pub proc_ioprio: Option<u32>,
-    pub proc_renice: Option<u32>,
-    pub splitlock_hack: Option<bool>,
-}
-
-#[derive(Clone, Deserialize, Debug, Default)]
-pub struct NvGpuConfig {
-    pub enabled: Option<bool>,
-    pub set_max: Option<bool>,
-    pub power_limit: Option<u32>,
-    pub device_uuid: Option<String>,
-}
-
-#[derive(Clone, Deserialize, Debug, Default)]
-pub struct AmdZenConfig {
-    pub enabled: Option<bool>,
-    pub amd_epp: Option<String>,
-}
-
-#[derive(Deserialize, Debug, Default)]
 pub struct HooksConfig {
     pub init: Option<String>,
     pub shutdown: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct EnvironmentConfig {
-    pub global: HashMap<String, EnvValue>,
+#[derive(Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct GameConfig {
+    pub mangohud: bool,
+    pub proton_log: bool,
+    pub proton_ntsync: bool,
+    pub proton_wayland: bool,
+    pub wine_dll_overrides: Option<String>,
+}
 
-    #[serde(flatten)]
-    pub executables: HashMap<String, HashMap<String, EnvValue>>,
+impl Default for GameConfig {
+    fn default() -> Self {
+        Self {
+            mangohud: false,
+            proton_log: false,
+            proton_ntsync: false,
+            proton_wayland: false,
+            wine_dll_overrides: None,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -192,12 +178,6 @@ impl EnvValue {
 }
 
 impl Config {
-    pub fn is_tuning_enabled(&self) -> bool {
-        self.tuning.process.enabled.unwrap_or(false)
-            || self.tuning.nvidia.enabled.unwrap_or(false)
-            || self.tuning.ryzen.enabled.unwrap_or(false)
-    }
-
     pub fn load() -> anyhow::Result<Self> {
         debug!("Locating configuration directory");
         let config_path = dirs::config_dir()
@@ -230,15 +210,11 @@ impl Config {
         })?;
 
         debug!("Configuration parsed successfully");
-        debug!("  Global env vars: {}", config.environments.global.len());
-        debug!(
-            "  Executable configs: {}",
-            config.environments.executables.len()
-        );
-        if let Some(ref init_hook) = config.hooks.init {
+        debug!("  Executable configs: {}", config.env.len());
+        if let Some(ref init_hook) = config.hook.init {
             debug!("  Init hook: {}", init_hook);
         }
-        if let Some(ref shutdown_hook) = config.hooks.shutdown {
+        if let Some(ref shutdown_hook) = config.hook.shutdown {
             debug!("  Shutdown hook: {}", shutdown_hook);
         }
 
