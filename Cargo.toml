@@ -15,6 +15,9 @@ authors = ["The quick brown fox jumps over the lazy dog"]
 description = "Minimalist NVIDIA PRIME render offload wrapper with config support"
 license = "MIT"
 
+[profile.release]
+strip = true
+
 [dependencies]
 log = "0.4"
 libc = "0.2"
