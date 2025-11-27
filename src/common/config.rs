@@ -133,6 +133,7 @@ pub struct HooksConfig {
 #[serde(default)]
 pub struct GameConfig {
     pub mangohud: bool,
+    pub mangohud_conf: Option<String>,
     pub proton_log: bool,
     pub proton_ntsync: bool,
     pub proton_wayland: bool,
@@ -143,6 +144,7 @@ impl Default for GameConfig {
     fn default() -> Self {
         Self {
             mangohud: false,
+            mangohud_conf: None,
             proton_log: false,
             proton_ntsync: false,
             proton_wayland: false,
