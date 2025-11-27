@@ -804,6 +804,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "nvprime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bytes",
+ "chrono",
+ "clap",
+ "dirs",
+ "env_logger",
+ "libc",
+ "log",
+ "nix",
+ "nvml-wrapper",
+ "phf",
+ "serde",
+ "tokio",
+ "toml",
+ "zbus",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -947,28 +969,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8a2f0d8d040d7848a709caf78912debcc3f33ee4b3cac47d73d1e1069e83507"
 dependencies = [
  "portable-atomic",
-]
-
-[[package]]
-name = "primers"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bincode",
- "bytes",
- "chrono",
- "clap",
- "dirs",
- "env_logger",
- "libc",
- "log",
- "nix",
- "nvml-wrapper",
- "phf",
- "serde",
- "tokio",
- "toml",
- "zbus",
 ]
 
 [[package]]

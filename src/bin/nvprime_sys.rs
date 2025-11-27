@@ -1,6 +1,6 @@
 use clap::Parser;
-use primers::common::{Config, logging};
-use primers::service::{NvPrimeDaemon, process};
+use nvprime::common::{Config, logging};
+use nvprime::service::{NvPrimeDaemon, process};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
