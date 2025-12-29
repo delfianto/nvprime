@@ -239,6 +239,6 @@ system/nvprime.service usr/lib/systemd/system/
 
 ## See Also
 
-- [SYSTEM_CONFIG.md](../SYSTEM_CONFIG.md) - Detailed configuration documentation
-- [JUSTFILE.md](../JUSTFILE.md) - Just command reference
+- [CONFIGURATION.md](CONFIGURATION.md) - Detailed configuration documentation
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Just command reference
 - [README.md](../README.md) - Project overview
