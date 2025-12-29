@@ -1,50 +1,38 @@
-use clap::Parser;
-use nvprime::common::{Config, logging};
-use nvprime::service::{NvPrimeDaemon, process};
-use std::path::PathBuf;
+use anyhow::{Context, Result};
+use log::info;
+use nvprime::common::{ipc::NvPrimeService, logging, Config};
+use nvprime::service::DaemonState;
+use std::sync::{Arc, Mutex};
 
-#[derive(Parser, Debug)]
-#[command(name = "nvprime-daemon")]
-#[command(about = "NvPrime system daemon", long_about = None)]
-struct Args {
-    /// Path to the configuration file
-    #[arg(short, long, value_name = "FILE", value_parser = validate_config_file)]
-    config: PathBuf,
-}
+#[tokio::main]
+async fn main() -> Result<()> {
+    logging::init(true).context("Failed to initialize logging")?;
 
-/// Validates that the config file exists and is parseable
-fn validate_config_file(path: &str) -> Result<PathBuf, String> {
-    let path_buf = PathBuf::from(path);
+    info!("Starting nvprime system daemon");
 
-    // Check if file exists
-    if !path_buf.exists() {
-        return Err(format!("Config file does not exist: {}", path));
+    let config = Config::load().context("Failed to load configuration")?;
+
+    let state = Arc::new(Mutex::new(DaemonState::new()));
+
+    if config.gpu.enabled {
+        let mut state_lock = state.lock().unwrap();
+        state_lock
+            .init_gpu(config.gpu.gpu_uuid.clone())
+            .context("Failed to initialize GPU")?;
     }
 
-    // Check if it's a file
-    if !path_buf.is_file() {
-        return Err(format!("Path is not a file: {}", path));
-    }
+    let service = NvPrimeService::new(Arc::clone(&state));
 
-    // Try to parse the config file to ensure it's valid
-    match std::fs::read_to_string(&path_buf) {
-        Ok(contents) => {
-            if contents.is_empty() {
-                Err(format!("Config file is empty: {}", path))
-            } else {
-                let _ = Config::load_file(path_buf.clone());
-                Ok(path_buf)
-            }
-        }
-        Err(e) => Err(format!("Failed to read config file: {}", e)),
-    }
-}
+    let _conn = zbus::connection::Builder::system()?
+        .name("com.github.nvprime")?
+        .serve_at("/com/github/nvprime", service)?
+        .build()
+        .await?;
 
-fn main() {
-    let _ = logging::init(true);
-    let args = Args::parse();
-    let daemon = NvPrimeDaemon::new(args.config);
+    info!("D-Bus service started on system bus");
+    info!("Waiting for requests...");
 
-    process::try_elevate();
-    daemon.run();
+    std::future::pending::<()>().await;
+
+    Ok(())
 }

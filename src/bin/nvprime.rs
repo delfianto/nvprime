@@ -1,12 +1,13 @@
-use anyhow::Result;
-use log::{debug, error, info};
-use nvprime::common::{Config, NvGpu, logging};
+use anyhow::{Context, Result};
+use log::{error, info};
+use nvprime::common::{logging, Config, NvPrimeClientProxy};
 use nvprime::runner::Launcher;
+use zbus::Connection;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     logging::init(true)?;
 
-    // Remove 1st argument as this is the nvprime itself
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     if args.is_empty() {
@@ -17,30 +18,37 @@ fn main() -> Result<()> {
     info!("Starting nvprime");
     let config = Config::load()?;
 
-    // NVIDIA GPU initialization
-    match NvGpu::init(config.gpu.gpu_uuid.clone()) {
-        Ok(mut nv_gpu) => {
-            nv_gpu.log_gpu_info()?;
-        }
-        Err(e) => {
-            error!("Failed to initialize GPU: {:?}", e);
-            std::process::exit(1);
-        }
-    }
+    let conn = Connection::system()
+        .await
+        .context("Failed to connect to system bus")?;
 
-    // Run init hooks
-    // debug!("Running init hooks");
-    // Hooks::run_init(&config, config.hooks.init.as_deref())?;
+    let proxy = NvPrimeClientProxy::new(&conn)
+        .await
+        .context("Failed to create D-Bus proxy")?;
 
-    debug!("Launching process...");
+    let tuning_config = serde_json::json!({
+        "gpu": config.gpu,
+        "sys": config.sys,
+    });
+
+    let config_json = serde_json::to_string(&tuning_config)
+        .context("Failed to serialize config")?;
+
+    let pid = std::process::id();
+
+    proxy
+        .apply_tuning(pid, config_json)
+        .await
+        .context("Failed to apply tuning")?;
+
+    info!("Applied tuning configuration");
+
     let mut launcher = Launcher::new(args, &config);
-
-    // Start and wait for completion
     let exit_code = launcher.execute()?;
 
-    // Run shutdown hooks
-    // debug!("Running shutdown hooks");
-    // Hooks::run_shutdown(&config, config.hooks.shutdown.as_deref())?;
+    if let Err(e) = proxy.reset_tuning().await {
+        error!("Failed to reset tuning: {}", e);
+    }
 
     std::process::exit(exit_code);
 }

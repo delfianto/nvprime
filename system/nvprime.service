@@ -1,0 +1,13 @@
+[Unit]
+Description=NvPrime System Daemon
+After=network.target
+
+[Service]
+Type=dbus
+BusName=com.github.nvprime
+ExecStart=/usr/local/bin/nvprime-sys
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
