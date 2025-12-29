@@ -46,9 +46,9 @@ impl Launcher {
             .stderr(Stdio::inherit())
             .spawn()
             .map_err(|e| {
-            error!("Failed to spawn process {}: {}", self.exec, e);
-            anyhow::anyhow!(e)
-        })?;
+                error!("Failed to spawn process {}: {}", self.exec, e);
+                anyhow::anyhow!(e)
+            })?;
 
         let pid = child.id();
         info!("Spawned process '{}' with PID {}", self.exec, pid);
@@ -99,17 +99,16 @@ impl Launcher {
 fn detect_game_exec(args: &[String]) -> String {
     debug!("Detecting game executable from args");
 
-    if let Some(i) = args.iter().position(|arg| arg == "waitforexitandrun") {
-        if let Some((_, exe_arg)) = args
+    if let Some(i) = args.iter().position(|arg| arg == "waitforexitandrun")
+        && let Some((_, exe_arg)) = args
             .iter()
             .enumerate()
             .skip(i + 1)
             .find(|(_, arg)| arg.ends_with(".exe"))
-        {
-            let name = extract_stem(exe_arg);
-            debug!("Detected game '{}' via waitforexitandrun", name);
-            return name;
-        }
+    {
+        let name = extract_stem(exe_arg);
+        debug!("Detected game '{}' via waitforexitandrun", name);
+        return name;
     }
 
     if let Some((_, exe_arg)) = args
@@ -204,10 +203,7 @@ mod tests {
 
     #[test]
     fn test_detect_game_exec_no_exe() {
-        let args = vec![
-            "launcher".to_string(),
-            "arg1".to_string(),
-        ];
+        let args = vec!["launcher".to_string(), "arg1".to_string()];
 
         assert_eq!(detect_game_exec(&args), "launcher");
     }
@@ -285,6 +281,11 @@ mod tests {
 
         let result = launcher.wait();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No running process"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("No running process")
+        );
     }
 }

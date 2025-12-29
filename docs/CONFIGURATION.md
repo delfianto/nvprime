@@ -47,12 +47,13 @@ Controls NVIDIA GPU settings. Requires the daemon to be running.
 
 Process priority and system-level hacks.
 
-| Option           | Type    | Default | Description                                         |
-| ---------------- | ------- | ------- | --------------------------------------------------- |
-| `sys_tuning`     | bool    | `false` | Enable system tuning.                               |
-| `proc_ioprio`    | integer | `4`     | IO priority (0-7, lower is higher priority).        |
-| `proc_renice`    | integer | `0`     | CPU niceness (-20 to 19, lower is higher priority). |
-| `splitlock_hack` | bool    | `false` | Enable split-lock detection mitigation.             |
+| Option                  | Type    | Default | Description                                         |
+| ----------------------- | ------- | ------- | --------------------------------------------------- |
+| `sys_tuning`            | bool    | `false` | Enable system tuning.                               |
+| `proc_ioprio`           | integer | `4`     | IO priority (0-7, lower is higher priority).        |
+| `proc_renice`           | integer | `0`     | CPU niceness (-20 to 19, lower is higher priority). |
+| `splitlock_hack`        | bool    | `false` | Enable split-lock detection mitigation.             |
+| `watchdog_interval_sec` | integer | `10`    | Interval for process monitoring (seconds).          |
 
 ### Game Specific Config `[game.<name>]`
 
@@ -107,6 +108,7 @@ sys_tuning = true                           # Enable system tuning
 proc_ioprio = 10                            # I/O priority (0-7, lower=higher)
 proc_renice = 10                            # Nice value (-20 to 19, lower=higher)
 splitlock_hack = true                       # Split-lock mitigation
+watchdog_interval_sec = 10                  # Polling interval for cleanup (seconds)
 
 [game.ffxvi]                                # Run with: nvprime run ffxvi
 mangohud = true                             # Enable MangoHud
