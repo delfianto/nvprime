@@ -192,3 +192,164 @@ impl EnvBuilder {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::config::{Config, GameConfig, GpuTune};
+
+    #[test]
+    fn test_env_builder_new() {
+        let builder = EnvBuilder::new();
+        assert!(!builder.vars.is_empty());
+        assert_eq!(builder.vars.get("__NV_PRIME_RENDER_OFFLOAD"), Some(&"1".to_string()));
+        assert_eq!(builder.vars.get("__GLX_VENDOR_LIBRARY_NAME"), Some(&"nvidia".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_env() {
+        let builder = EnvBuilder::new().with_env("TEST_VAR", "test_value");
+        let vars = builder.build();
+        assert_eq!(vars.get("TEST_VAR"), Some(&"test_value".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_bool() {
+        let builder = EnvBuilder::new()
+            .with_bool("ENABLED_FLAG", true)
+            .with_bool("DISABLED_FLAG", false);
+        let vars = builder.build();
+        assert_eq!(vars.get("ENABLED_FLAG"), Some(&"1".to_string()));
+        assert_eq!(vars.get("DISABLED_FLAG"), Some(&"0".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_gpu_name() {
+        let builder = EnvBuilder::new().with_gpu_name("NVIDIA RTX 4090");
+        let vars = builder.build();
+        assert_eq!(vars.get(DXVK_GPU), Some(&"NVIDIA RTX 4090".to_string()));
+        assert_eq!(vars.get(VKD3D_GPU), Some(&"NVIDIA RTX 4090".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_mangohud() {
+        let builder = EnvBuilder::new().with_mangohud(true);
+        let vars = builder.build();
+        assert_eq!(vars.get(HUD), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_log() {
+        let builder = EnvBuilder::new().with_log(true);
+        let vars = builder.build();
+        assert_eq!(vars.get(LOG), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_ntsync() {
+        let builder = EnvBuilder::new().with_ntsync(true);
+        let vars = builder.build();
+        assert_eq!(vars.get(NTSYNC), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_wayland() {
+        let builder = EnvBuilder::new().with_wayland(true);
+        let vars = builder.build();
+        assert_eq!(vars.get(WAYLAND), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_dll_overrides() {
+        let builder = EnvBuilder::new().with_dll_overrides("dinput8=n,b");
+        let vars = builder.build();
+        assert_eq!(vars.get(WINE_DLLS), Some(&"dinput8=n,b".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_merge_global() {
+        let mut builder = EnvBuilder::new();
+        let mut global = BTreeMap::new();
+        global.insert("GLOBAL_VAR".to_string(), EnvValue::String("global_value".to_string()));
+        global.insert("GLOBAL_INT".to_string(), EnvValue::Integer(42));
+
+        builder.merge_global(&global);
+        let vars = builder.build();
+
+        assert_eq!(vars.get("GLOBAL_VAR"), Some(&"global_value".to_string()));
+        assert_eq!(vars.get("GLOBAL_INT"), Some(&"42".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_config_minimal() {
+        let config = Config {
+            cpu: Default::default(),
+            gpu: GpuTune::default(),
+            sys: Default::default(),
+            env: Default::default(),
+            game: Default::default(),
+            hook: Default::default(),
+        };
+
+        let vars = EnvBuilder::new().with_config(&config, &"testgame".to_string());
+        assert!(!vars.is_empty());
+        assert_eq!(vars.get("__NV_PRIME_RENDER_OFFLOAD"), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_config_gpu_name() {
+        let mut config = Config {
+            cpu: Default::default(),
+            gpu: GpuTune::default(),
+            sys: Default::default(),
+            env: Default::default(),
+            game: Default::default(),
+            hook: Default::default(),
+        };
+        config.gpu.gpu_name = Some("Test GPU".to_string());
+
+        let vars = EnvBuilder::new().with_config(&config, &"testgame".to_string());
+        assert_eq!(vars.get(DXVK_GPU), Some(&"Test GPU".to_string()));
+        assert_eq!(vars.get(VKD3D_GPU), Some(&"Test GPU".to_string()));
+    }
+
+    #[test]
+    fn test_env_builder_with_config_game_specific() {
+        let mut config = Config {
+            cpu: Default::default(),
+            gpu: GpuTune::default(),
+            sys: Default::default(),
+            env: Default::default(),
+            game: Default::default(),
+            hook: Default::default(),
+        };
+
+        let game_config = GameConfig {
+            mangohud: true,
+            mangohud_conf: Some("fps_only=1".to_string()),
+            proton_log: true,
+            proton_ntsync: true,
+            proton_wayland: false,
+            wine_dll_overrides: Some("dinput8=n,b".to_string()),
+        };
+        config.game.insert("testgame".to_string(), game_config);
+
+        let vars = EnvBuilder::new().with_config(&config, &"testgame".to_string());
+        assert_eq!(vars.get(HUD), Some(&"1".to_string()));
+        assert_eq!(vars.get(HUD_CFG), Some(&"fps_only=1".to_string()));
+        assert_eq!(vars.get(LOG), Some(&"1".to_string()));
+        assert_eq!(vars.get(NTSYNC), Some(&"1".to_string()));
+        assert_eq!(vars.get(WAYLAND), Some(&"0".to_string()));
+        assert_eq!(vars.get(WINE_DLLS), Some(&"dinput8=n,b".to_string()));
+    }
+
+    #[test]
+    fn test_env_defaults_contains_required_vars() {
+        let builder = EnvBuilder::new();
+        assert!(builder.vars.contains_key("__NV_PRIME_RENDER_OFFLOAD"));
+        assert!(builder.vars.contains_key("__GLX_VENDOR_LIBRARY_NAME"));
+        assert!(builder.vars.contains_key("VK_ICD_FILENAMES"));
+        assert!(builder.vars.contains_key("MANGOHUD"));
+        assert!(builder.vars.contains_key("PROTON_LOG"));
+    }
+}

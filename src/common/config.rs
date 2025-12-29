@@ -1,5 +1,5 @@
 use log::{debug, error, info};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
 const CONFIG_FILE: &str = "nvprime.conf";
@@ -51,7 +51,7 @@ impl Default for CpuTune {
 }
 
 /// Config section for NVIDIA GPU and any related tuning flag
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(default)]
 pub struct GpuTune {
     /// Flag to enable power tuning
@@ -90,7 +90,7 @@ impl Default for GpuTune {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(default)]
 pub struct SysTune {
     /// Enable or disable system-level tuning
@@ -221,5 +221,181 @@ impl Config {
         }
 
         Ok(config)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_cpu_tune_defaults() {
+        let cpu = CpuTune::default();
+        assert!(!cpu.enabled);
+        assert_eq!(cpu.amd_epp_tune, "performance");
+        assert_eq!(cpu.amd_epp_base, "balance_performance");
+    }
+
+    #[test]
+    fn test_gpu_tune_defaults() {
+        let gpu = GpuTune::default();
+        assert!(!gpu.enabled);
+        assert!(gpu.gpu_name.is_none());
+        assert!(gpu.gpu_uuid.is_none());
+        assert_eq!(gpu.gpu_vlk_icd, "/usr/share/vulkan/icd.d/nvidia_icd.json");
+        assert!(!gpu.set_max_pwr);
+        assert!(gpu.pwr_limit_tune.is_none());
+    }
+
+    #[test]
+    fn test_sys_tune_defaults() {
+        let sys = SysTune::default();
+        assert!(!sys.enabled);
+        assert_eq!(sys.proc_ioprio, 4);
+        assert_eq!(sys.proc_renice, 0);
+        assert!(!sys.splitlock_hack);
+    }
+
+    #[test]
+    fn test_game_config_defaults() {
+        let game = GameConfig::default();
+        assert!(!game.mangohud);
+        assert!(game.mangohud_conf.is_none());
+        assert!(!game.proton_log);
+        assert!(!game.proton_ntsync);
+        assert!(!game.proton_wayland);
+        assert!(game.wine_dll_overrides.is_none());
+    }
+
+    #[test]
+    fn test_env_value_to_string() {
+        assert_eq!(EnvValue::String("test".to_string()).to_string(), "test");
+        assert_eq!(EnvValue::Integer(42).to_string(), "42");
+        assert_eq!(EnvValue::Float(3.14).to_string(), "3.14");
+        assert_eq!(EnvValue::Boolean(true).to_string(), "1");
+        assert_eq!(EnvValue::Boolean(false).to_string(), "0");
+    }
+
+    #[test]
+    fn test_minimal_config_parsing() {
+        let toml_content = r#""#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert!(!config.cpu.enabled);
+        assert!(!config.gpu.enabled);
+        assert!(!config.sys.enabled);
+    }
+
+    #[test]
+    fn test_full_config_parsing() {
+        let toml_content = r#"
+[cpu]
+cpu_tuning = true
+amd_epp_tune = "performance"
+amd_epp_base = "balance_performance"
+
+[gpu]
+gpu_tuning = true
+gpu_name = "NVIDIA GeForce RTX 4090"
+gpu_uuid = "GPU-12345678"
+gpu_vlk_icd = "/custom/nvidia_icd.json"
+set_max_pwr = true
+pwr_limit_tune = 450000
+
+[sys]
+sys_tuning = true
+proc_ioprio = 2
+proc_renice = -5
+splitlock_hack = true
+
+[hook]
+init = "echo 'Starting game'"
+shutdown = "echo 'Game ended'"
+
+[game.testgame]
+mangohud = true
+mangohud_conf = "fps_only=1"
+proton_log = true
+proton_ntsync = true
+proton_wayland = false
+wine_dll_overrides = "dinput8=n,b"
+        "#;
+
+        let config: Config = toml::from_str(toml_content).unwrap();
+
+        assert!(config.cpu.enabled);
+        assert_eq!(config.cpu.amd_epp_tune, "performance");
+
+        assert!(config.gpu.enabled);
+        assert_eq!(config.gpu.gpu_name, Some("NVIDIA GeForce RTX 4090".to_string()));
+        assert_eq!(config.gpu.gpu_uuid, Some("GPU-12345678".to_string()));
+        assert!(config.gpu.set_max_pwr);
+        assert_eq!(config.gpu.pwr_limit_tune, Some(450000));
+
+        assert!(config.sys.enabled);
+        assert_eq!(config.sys.proc_ioprio, 2);
+        assert_eq!(config.sys.proc_renice, -5);
+        assert!(config.sys.splitlock_hack);
+
+        assert_eq!(config.hook.init, Some("echo 'Starting game'".to_string()));
+        assert_eq!(config.hook.shutdown, Some("echo 'Game ended'".to_string()));
+
+        let game = config.game.get("testgame").unwrap();
+        assert!(game.mangohud);
+        assert_eq!(game.mangohud_conf, Some("fps_only=1".to_string()));
+        assert!(game.proton_log);
+    }
+
+    #[test]
+    fn test_config_load_file() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(
+            temp_file,
+            r#"
+[gpu]
+gpu_tuning = true
+gpu_name = "Test GPU"
+            "#
+        )
+        .unwrap();
+
+        let config = Config::load_file(temp_file.path().to_path_buf()).unwrap();
+        assert!(config.gpu.enabled);
+        assert_eq!(config.gpu.gpu_name, Some("Test GPU".to_string()));
+    }
+
+    #[test]
+    fn test_config_load_file_nonexistent() {
+        let result = Config::load_file(PathBuf::from("/nonexistent/config.toml"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_config_load_file_invalid_toml() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "invalid toml [[[").unwrap();
+
+        let result = Config::load_file(temp_file.path().to_path_buf());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_config_serialization() {
+        let gpu = GpuTune {
+            enabled: true,
+            gpu_name: Some("Test".to_string()),
+            gpu_uuid: None,
+            gpu_vlk_icd: "/test.json".to_string(),
+            set_max_pwr: true,
+            pwr_limit_tune: Some(400000),
+        };
+
+        let json = serde_json::to_string(&gpu).unwrap();
+        let deserialized: GpuTune = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.enabled, gpu.enabled);
+        assert_eq!(deserialized.gpu_name, gpu.gpu_name);
+        assert_eq!(deserialized.set_max_pwr, gpu.set_max_pwr);
     }
 }

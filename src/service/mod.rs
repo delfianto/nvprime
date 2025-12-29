@@ -1,4 +1,4 @@
 pub mod daemon;
-pub mod process;
+pub mod ryzen;
 
-pub use daemon::NvPrimeDaemon;
+pub use daemon::{DaemonState, start_pid_watchdog};
