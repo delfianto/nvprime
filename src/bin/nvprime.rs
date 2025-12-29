@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use log::{error, info};
-use nvprime::common::{logging, Config, NvPrimeClientProxy};
+use nvprime::common::{Config, NvPrimeClientProxy, logging};
 use nvprime::runner::Launcher;
 use zbus::Connection;
 
@@ -27,12 +27,13 @@ async fn main() -> Result<()> {
         .context("Failed to create D-Bus proxy")?;
 
     let tuning_config = serde_json::json!({
+        "cpu": config.cpu,
         "gpu": config.gpu,
         "sys": config.sys,
     });
 
-    let config_json = serde_json::to_string(&tuning_config)
-        .context("Failed to serialize config")?;
+    let config_json =
+        serde_json::to_string(&tuning_config).context("Failed to serialize config")?;
 
     let pid = std::process::id();
 

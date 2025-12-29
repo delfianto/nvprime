@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
-use log::info;
-use nvprime::common::{ipc::NvPrimeService, logging, Config};
+use log::{error, info};
+use nvprime::common::{Config, ipc::NvPrimeService, logging};
 use nvprime::service::DaemonState;
 use std::sync::{Arc, Mutex};
+use tokio::signal::unix::{SignalKind, signal};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -32,7 +33,26 @@ async fn main() -> Result<()> {
     info!("D-Bus service started on system bus");
     info!("Waiting for requests...");
 
-    std::future::pending::<()>().await;
+    let mut sigterm = signal(SignalKind::terminate())?;
+    let mut sigint = signal(SignalKind::interrupt())?;
+
+    tokio::select! {
+        _ = sigterm.recv() => info!("Received SIGTERM, shutting down"),
+        _ = sigint.recv() => info!("Received SIGINT, shutting down"),
+    }
+
+    info!("Restoring system defaults...");
+    let mut state_lock = state.lock().unwrap();
+
+    if let Err(e) = state_lock.restore_gpu_defaults() {
+        error!("Failed to restore GPU defaults: {}", e);
+    }
+
+    if let Err(e) = state_lock.restore_cpu_defaults() {
+        error!("Failed to restore CPU defaults: {}", e);
+    }
+
+    info!("Shutdown complete");
 
     Ok(())
 }

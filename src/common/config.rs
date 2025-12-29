@@ -26,7 +26,7 @@ pub struct Config {
 }
 
 /// Config section for AMD Zen EPP tuning
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct CpuTune {
     /// Flag for tuning status
     #[serde(rename = "cpu_tuning")]
@@ -110,6 +110,10 @@ pub struct SysTune {
     /// Enable split-lock detection mitigation hack
     /// Helps prevent performance degradation from split-lock abuse by game engine
     pub splitlock_hack: bool,
+
+    /// Interval in seconds for the daemon to poll process status
+    /// Default: 10 seconds
+    pub watchdog_interval_sec: u64,
 }
 
 impl Default for SysTune {
@@ -119,6 +123,7 @@ impl Default for SysTune {
             proc_ioprio: 4,
             proc_renice: 0,
             splitlock_hack: false,
+            watchdog_interval_sec: 10,
         }
     }
 }
@@ -129,7 +134,11 @@ pub struct HooksConfig {
     pub shutdown: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+use std::fmt;
+
+// ...
+
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct GameConfig {
     pub mangohud: bool,
@@ -138,19 +147,6 @@ pub struct GameConfig {
     pub proton_ntsync: bool,
     pub proton_wayland: bool,
     pub wine_dll_overrides: Option<String>,
-}
-
-impl Default for GameConfig {
-    fn default() -> Self {
-        Self {
-            mangohud: false,
-            mangohud_conf: None,
-            proton_log: false,
-            proton_ntsync: false,
-            proton_wayland: false,
-            wine_dll_overrides: None,
-        }
-    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -162,21 +158,20 @@ pub enum EnvValue {
     Boolean(bool),
 }
 
-impl EnvValue {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for EnvValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EnvValue::String(s) => s.clone(),
-            EnvValue::Integer(i) => i.to_string(),
-            EnvValue::Float(f) => f.to_string(),
-            EnvValue::Boolean(b) => {
-                if *b {
-                    "1".to_string()
-                } else {
-                    "0".to_string()
-                }
-            }
+            EnvValue::String(s) => write!(f, "{}", s),
+            EnvValue::Integer(i) => write!(f, "{}", i),
+            EnvValue::Float(fl) => write!(f, "{}", fl),
+            EnvValue::Boolean(b) => write!(f, "{}", if *b { "1" } else { "0" }),
         }
     }
+}
+
+impl EnvValue {
+    // Kept for backward compatibility if used directly, but implements via Display
+    // Actually clippy wants us to remove this if we impl Display
 }
 
 impl Config {
@@ -328,7 +323,10 @@ wine_dll_overrides = "dinput8=n,b"
         assert_eq!(config.cpu.amd_epp_tune, "performance");
 
         assert!(config.gpu.enabled);
-        assert_eq!(config.gpu.gpu_name, Some("NVIDIA GeForce RTX 4090".to_string()));
+        assert_eq!(
+            config.gpu.gpu_name,
+            Some("NVIDIA GeForce RTX 4090".to_string())
+        );
         assert_eq!(config.gpu.gpu_uuid, Some("GPU-12345678".to_string()));
         assert!(config.gpu.set_max_pwr);
         assert_eq!(config.gpu.pwr_limit_tune, Some(450000));

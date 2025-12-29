@@ -1,5 +1,5 @@
-use crate::common::config::{GpuTune, SysTune};
-use crate::service::daemon::{start_pid_watchdog, DaemonState};
+use crate::common::config::{CpuTune, GpuTune, SysTune};
+use crate::service::daemon::{DaemonState, start_pid_watchdog};
 use log::{error, info};
 use std::sync::{Arc, Mutex};
 use zbus::{interface, proxy};
@@ -25,20 +25,36 @@ impl NvPrimeService {
         {
             let mut state = self.state.lock().unwrap();
 
+            if let Err(e) = state.apply_cpu_tuning(&config.cpu) {
+                error!("Failed to apply CPU tuning: {}", e);
+                // We don't return error here, just log it, as CPU tuning is optional/best-effort
+            }
+
             if let Err(e) = state.apply_gpu_tuning(&config.gpu) {
                 error!("Failed to apply GPU tuning: {}", e);
-                return Err(zbus::fdo::Error::Failed(format!("GPU tuning failed: {}", e)));
+                return Err(zbus::fdo::Error::Failed(format!(
+                    "GPU tuning failed: {}",
+                    e
+                )));
             }
 
             if let Err(e) = state.apply_process_priority(pid, &config.sys) {
                 error!("Failed to apply process priority: {}", e);
-                return Err(zbus::fdo::Error::Failed(format!("Process priority failed: {}", e)));
+                return Err(zbus::fdo::Error::Failed(format!(
+                    "Process priority failed: {}",
+                    e
+                )));
             }
 
             state.add_active_pid(pid);
         }
 
-        start_pid_watchdog(Arc::clone(&self.state), pid).await;
+        start_pid_watchdog(
+            Arc::clone(&self.state),
+            pid,
+            config.sys.watchdog_interval_sec,
+        )
+        .await;
 
         info!("Applied tuning for PID {}", pid);
         Ok(())
@@ -48,13 +64,27 @@ impl NvPrimeService {
         info!("Resetting tuning");
         let mut state = self.state.lock().unwrap();
 
+        let mut success = true;
+
         if let Err(e) = state.restore_gpu_defaults() {
             error!("Failed to restore GPU defaults: {}", e);
-            return Err(zbus::fdo::Error::Failed(format!("Failed to reset: {}", e)));
+            success = false;
+        }
+
+        if let Err(e) = state.restore_cpu_defaults() {
+            error!("Failed to restore CPU defaults: {}", e);
+            success = false;
         }
 
         state.active_pids.clear();
         info!("Tuning reset complete");
+
+        if !success {
+            return Err(zbus::fdo::Error::Failed(
+                "Failed to fully reset tuning".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -65,6 +95,7 @@ impl NvPrimeService {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct TuningConfig {
+    pub cpu: CpuTune,
     pub gpu: GpuTune,
     pub sys: SysTune,
 }
@@ -86,6 +117,12 @@ mod tests {
 
     #[test]
     fn test_tuning_config_serialization() {
+        let cpu = CpuTune {
+            enabled: true,
+            amd_epp_tune: "performance".to_string(),
+            amd_epp_base: "balance".to_string(),
+        };
+
         let gpu = GpuTune {
             enabled: true,
             gpu_name: Some("Test GPU".to_string()),
@@ -100,9 +137,11 @@ mod tests {
             proc_ioprio: 2,
             proc_renice: -5,
             splitlock_hack: true,
+            watchdog_interval_sec: 10,
         };
 
         let config_json = serde_json::json!({
+            "cpu": cpu,
             "gpu": gpu,
             "sys": sys,
         });
@@ -111,6 +150,8 @@ mod tests {
         assert!(!json_str.is_empty());
 
         let parsed: TuningConfig = serde_json::from_str(&json_str).unwrap();
+        assert!(parsed.cpu.enabled);
+        assert_eq!(parsed.cpu.amd_epp_tune, "performance");
         assert!(parsed.gpu.enabled);
         assert_eq!(parsed.gpu.gpu_name, Some("Test GPU".to_string()));
         assert!(parsed.sys.enabled);
@@ -119,9 +160,10 @@ mod tests {
 
     #[test]
     fn test_tuning_config_deserialization_minimal() {
-        let json_str = r#"{"gpu": {"gpu_tuning": false}, "sys": {"sys_tuning": false}}"#;
+        let json_str = r#"{"cpu": {"cpu_tuning": false}, "gpu": {"gpu_tuning": false}, "sys": {"sys_tuning": false}}"#;
         let parsed: TuningConfig = serde_json::from_str(json_str).unwrap();
 
+        assert!(!parsed.cpu.enabled);
         assert!(!parsed.gpu.enabled);
         assert!(!parsed.sys.enabled);
     }
@@ -139,6 +181,7 @@ mod tests {
     #[test]
     fn test_tuning_config_round_trip() {
         let original = TuningConfig {
+            cpu: CpuTune::default(),
             gpu: GpuTune {
                 enabled: true,
                 gpu_name: Some("RTX 4090".to_string()),
@@ -152,6 +195,7 @@ mod tests {
                 proc_ioprio: 1,
                 proc_renice: -10,
                 splitlock_hack: false,
+                watchdog_interval_sec: 15,
             },
         };
 

@@ -74,7 +74,15 @@ impl EnvBuilder {
                 .collect(),
         }
     }
+}
 
+impl Default for EnvBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl EnvBuilder {
     fn set_str(&mut self, key: &str, val: &str) {
         self.vars.insert(key.to_string(), val.to_string());
     }
@@ -202,8 +210,14 @@ mod tests {
     fn test_env_builder_new() {
         let builder = EnvBuilder::new();
         assert!(!builder.vars.is_empty());
-        assert_eq!(builder.vars.get("__NV_PRIME_RENDER_OFFLOAD"), Some(&"1".to_string()));
-        assert_eq!(builder.vars.get("__GLX_VENDOR_LIBRARY_NAME"), Some(&"nvidia".to_string()));
+        assert_eq!(
+            builder.vars.get("__NV_PRIME_RENDER_OFFLOAD"),
+            Some(&"1".to_string())
+        );
+        assert_eq!(
+            builder.vars.get("__GLX_VENDOR_LIBRARY_NAME"),
+            Some(&"nvidia".to_string())
+        );
     }
 
     #[test]
@@ -270,7 +284,10 @@ mod tests {
     fn test_env_builder_merge_global() {
         let mut builder = EnvBuilder::new();
         let mut global = BTreeMap::new();
-        global.insert("GLOBAL_VAR".to_string(), EnvValue::String("global_value".to_string()));
+        global.insert(
+            "GLOBAL_VAR".to_string(),
+            EnvValue::String("global_value".to_string()),
+        );
         global.insert("GLOBAL_INT".to_string(), EnvValue::Integer(42));
 
         builder.merge_global(&global);
@@ -293,7 +310,10 @@ mod tests {
 
         let vars = EnvBuilder::new().with_config(&config, &"testgame".to_string());
         assert!(!vars.is_empty());
-        assert_eq!(vars.get("__NV_PRIME_RENDER_OFFLOAD"), Some(&"1".to_string()));
+        assert_eq!(
+            vars.get("__NV_PRIME_RENDER_OFFLOAD"),
+            Some(&"1".to_string())
+        );
     }
 
     #[test]
