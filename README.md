@@ -15,7 +15,6 @@
 - **[Installation Guide](docs/INSTALLATION.md)**: System requirements and installation steps.
 - **[Configuration Guide](docs/CONFIGURATION.md)**: Detailed reference for `nvprime.conf` options.
 - **[Development & Usage](docs/DEVELOPMENT.md)**: How to build, test, and use the development tools.
-- **[System Integration](docs/SYSTEM_CONFIG.md)**: Details on Systemd and D-Bus integration.
 
 ## Quick Start
 
@@ -35,17 +34,24 @@ To apply tuning to a game, simply prefix the command with `nvprime`.
 
 **For Steam Games:**
 Set the game's Launch Options to:
+
 ```bash
 nvprime %command%
 ```
+
 This is identical to how `gamemoderun` works. `nvprime` will automatically detect the game executable, apply the correct configuration (looking for `[game.executablename]`), and inject necessary environment variables.
 
 **For non-Steam games:**
+
 ```bash
 nvprime ./game_executable
 ```
 
 **Note:** This tool is primarily tested with Steam games. Non-Steam games are currently untested.
+
+## Here Be Dragons
+
+By using this software, you agree that if your GPU turns into a smoke machine, your CPU decides to cook an egg, or your computer achieves sentience and tries to take over the world, it is **not my fault**. This tool messes with power limits and hardware knobs; if you push your hardware beyond its limits, it might push back (by melting). You have been warned. Good luck, have fun, and may your framerates be high and your temperatures low.
 
 ## License
 
