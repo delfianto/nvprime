@@ -27,6 +27,7 @@ pub struct Config {
 
 /// Config section for AMD Zen EPP tuning
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(default)]
 pub struct CpuTune {
     /// Flag for tuning status
     #[serde(rename = "cpu_tuning")]
