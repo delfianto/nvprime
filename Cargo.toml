@@ -16,41 +16,23 @@ name = "nvprime-sys"
 path = "src/bin/nvprime_sys.rs"
 
 [dependencies]
-# Async runtime
-tokio = { version = "1", features = ["full"] }
-
-# D-Bus communication
-zbus = "5"
-
-# Serialization
+anyhow = "1"
+chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
+dirs = "5"
+env_logger = "0.11"
+libc = "0.2"
+log = "0.4"
+nix = { version = "0.31", features = ["user", "resource"] }
+nvml-wrapper = "0.12"
+phf = { version = "0.14", features = ["macros"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1", features = ["full"] }
 toml = "0.9"
-
-# CLI
-clap = { version = "4", features = ["derive"] }
-
-# Logging
-env_logger = "0.11"
-log = "0.4"
-
-# Error handling
-anyhow = "1"
-
-# NVIDIA GPU management
-nvml-wrapper = "0.12"
-
-# System utilities
-chrono = "0.4"
-dirs = "5"
-libc = "0.2"
-nix = { version = "0.31", features = ["user", "resource"] }
-
-# Perfect hash functions for static maps
-phf = { version = "0.14", features = ["macros"] }
+zbus = "5"
 
 [dev-dependencies]
-# Testing utilities
 mockall = "0.15"
 serial_test = "3"
 tempfile = "3"
