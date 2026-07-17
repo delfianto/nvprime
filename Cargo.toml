@@ -44,20 +44,20 @@ env_logger = "0.11"
 anyhow = "1"
 
 # NVIDIA GPU management
-nvml-wrapper = "0.11"
+nvml-wrapper = "0.12"
 
 # System utilities
-nix = { version = "0.30", features = ["user", "resource"] }
+nix = { version = "0.31", features = ["user", "resource"] }
 libc = "0.2"
 dirs = "5"
 chrono = "0.4"
 
 # Perfect hash functions for static maps
-phf = { version = "0.13", features = ["macros"] }
+phf = { version = "0.14", features = ["macros"] }
 
 [dev-dependencies]
 # Testing utilities
 tempfile = "3"
-mockall = "0.13"
+mockall = "0.15"
 serial_test = "3"
 uuid = "1"
