@@ -1,4 +1,3 @@
-
 [package]
 name = "nvprime"
 version = "0.1.0"
@@ -7,6 +6,7 @@ default-run = "nvprime"
 authors = ["The quick brown fox jumps over the lazy dog"]
 description = "Minimalist NVIDIA PRIME render offload wrapper with config support"
 license = "MIT"
+
 [[bin]]
 name = "nvprime"
 path = "src/bin/nvprime.rs"
@@ -50,9 +50,9 @@ nix = { version = "0.31", features = ["user", "resource"] }
 phf = { version = "0.14", features = ["macros"] }
 
 [dev-dependencies]
+# Testing utilities
 mockall = "0.15"
 serial_test = "3"
-# Testing utilities
 tempfile = "3"
 uuid = "1"
 
