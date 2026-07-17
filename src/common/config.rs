@@ -268,7 +268,7 @@ mod tests {
     fn test_env_value_to_string() {
         assert_eq!(EnvValue::String("test".to_string()).to_string(), "test");
         assert_eq!(EnvValue::Integer(42).to_string(), "42");
-        assert_eq!(EnvValue::Float(3.14).to_string(), "3.14");
+        assert_eq!(EnvValue::Float(12.5).to_string(), "12.5");
         assert_eq!(EnvValue::Boolean(true).to_string(), "1");
         assert_eq!(EnvValue::Boolean(false).to_string(), "0");
     }
