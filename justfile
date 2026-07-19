@@ -1,66 +1,111 @@
-# nvprime - Just commands for building, testing, and system integration
+# nvprime — baseline multi-bin (client + daemon); no install.sh (option A)
 
-# Default recipe (list available commands)
+bins    := "nvprime nvprime-sys"
+bin_dir := env_var("HOME") / ".local/bin"
+sys_dir := "/usr/local/bin"
+
+# List available recipes
 default:
     @just --list
 
-# Build the project in debug mode
+# Build release binaries
 build:
-    cargo build
-
-# Build the project in release mode with optimizations
-build-release:
     cargo build --release
 
-# Build and run tests
+# Build in debug mode
+build-debug:
+    cargo build
+
+# Run unit/integration tests that do not need live external services
 test:
     cargo test
 
-# Build, run tests, and check for warnings
-check:
-    cargo check --all-targets
-    cargo clippy -- -D warnings
-    cargo test
+# Auto-format the tree
+fmt:
+    cargo fmt --all
 
-# Run the client (requires daemon to be running)
-run *ARGS:
-    cargo run --bin nvprime -- {{ ARGS }}
+# Check formatting (CI gate)
+fmt-check:
+    cargo fmt --all -- --check
 
-# Run the daemon (requires root)
-run-daemon:
-    @echo "Note: Daemon requires root privileges"
-    cargo build --bin nvprime-sys
-    sudo ./target/debug/nvprime-sys
+# Lint — warnings denied (CI gate)
+lint:
+    cargo clippy --all-targets --all-features -- -D warnings
 
-# Clean build artifacts
+# Full local gate, mirrors CI (fmt + clippy + tests)
+check: fmt-check lint test
+
+# Compress every release binary with upx (skips a binary if already packed)
+compress: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v upx >/dev/null 2>&1; then
+        echo "compress: upx not found in PATH" >&2
+        exit 1
+    fi
+    for b in {{bins}}; do
+        path="target/release/$b"
+        if [ ! -f "$path" ]; then
+            echo "compress: missing $path (is bins= correct?)" >&2
+            exit 1
+        fi
+        upx -t "$path" >/dev/null 2>&1 || upx --best --lzma "$path"
+        echo "compressed $path"
+    done
+
+# Install both binaries into ~/.local/bin (default) or /usr/local/bin (--system)
+install *flags: compress
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="{{bin_dir}}"
+    sudo=""
+    for f in {{flags}}; do
+        case "$f" in
+            --system) dir="{{sys_dir}}"; sudo="sudo" ;;
+            *) echo "install: unknown flag '$f' (only --system is supported)" >&2; exit 1 ;;
+        esac
+    done
+    for b in {{bins}}; do
+        $sudo install -Dm755 "target/release/$b" "$dir/$b"
+        echo "installed $dir/$b"
+    done
+
+# Remove both installed binaries (pass --system for /usr/local/bin via sudo)
+uninstall *flags:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="{{bin_dir}}"
+    sudo=""
+    for f in {{flags}}; do
+        case "$f" in
+            --system) dir="{{sys_dir}}"; sudo="sudo" ;;
+            *) echo "uninstall: unknown flag '$f' (only --system is supported)" >&2; exit 1 ;;
+        esac
+    done
+    for b in {{bins}}; do
+        $sudo rm -f "$dir/$b"
+        echo "removed $dir/$b"
+    done
+
+# Remove build artifacts
 clean:
     cargo clean
 
-# Update dependencies to latest compatible versions
-update:
-    cargo update
+# ---------------------------------------------------------------------------
+# Specials — local dev helpers (unit/dbus stay in system/ for manual install)
+# ---------------------------------------------------------------------------
 
-# Format code
-fmt:
-    cargo fmt
+# Run the client (debug)
+run *args:
+    cargo run --bin nvprime -- {{args}}
 
-# Install to system (requires root)
-install: build-release
-    ./system/install.sh install
+# Run the daemon in debug (requires root)
+run-daemon:
+    @echo "Note: daemon requires root privileges"
+    cargo build --bin nvprime-sys
+    sudo ./target/debug/nvprime-sys
 
-# Install and enable the daemon service
-install-service: build-release
-    ./system/install.sh install-service
-
-# Uninstall from system (requires root)
-uninstall:
-    ./system/install.sh uninstall
-
-# Show installation status
-show-installed:
-    ./system/install.sh status
-
-# Restart the daemon service
+# Restart the daemon service (if installed manually)
 restart-daemon:
     sudo systemctl restart nvprime.service
     systemctl status nvprime.service --no-pager
@@ -81,50 +126,3 @@ status:
 test-dbus:
     @echo "Testing D-Bus connection to nvprime daemon..."
     busctl call com.github.nvprime /com/github/nvprime com.github.nvprime.Service ping
-
-# Build and install in one command
-all: build-release install
-
-# Development workflow: format, check, test
-dev: fmt check
-
-# Full CI workflow: format check, clippy, tests, build
-ci:
-    cargo fmt -- --check
-    cargo clippy -- -D warnings
-    cargo test --all-targets
-    cargo build --release
-
-# Benchmark build times
-bench-build:
-    @echo "Benchmarking clean build..."
-    cargo clean
-    time cargo build --release
-
-# Show dependency tree
-deps:
-    cargo tree
-
-# Show outdated dependencies
-outdated:
-    cargo outdated
-
-# Security audit of dependencies
-audit:
-    cargo audit
-
-# Generate documentation
-doc:
-    cargo doc --no-deps --open
-
-# Watch and rebuild on changes (requires cargo-watch)
-watch:
-    cargo watch -x check -x test
-
-# Create a release build and show binary sizes
-release-info: build-release
-    @echo "Release binaries built:"
-    @ls -lh target/release/nvprime target/release/nvprime-sys
-    @echo ""
-    @echo "Stripped sizes:"
-    @du -h target/release/nvprime target/release/nvprime-sys
