@@ -24,9 +24,9 @@ async fn main() -> Result<()> {
 
     let service = NvPrimeService::new(Arc::clone(&state));
 
-    let _conn = zbus::connection::Builder::system()?
-        .name("com.github.nvprime")?
-        .serve_at("/com/github/nvprime", service)?
+    let _conn = zbus::connection::Builder::system()
+        .name("com.github.nvprime")
+        .serve_at("/com/github/nvprime", service)
         .build()
         .await?;
 
