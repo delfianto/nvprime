@@ -211,14 +211,7 @@ The installation script can be used as a reference for creating distribution pac
 
 ### Arch Linux (PKGBUILD)
 
-```bash
-package() {
-    install -Dm755 "$srcdir/target/release/nvprime" "$pkgdir/usr/local/bin/nvprime"
-    install -Dm755 "$srcdir/target/release/nvprime-sys" "$pkgdir/usr/local/bin/nvprime-sys"
-    install -Dm644 "$srcdir/system/com.github.nvprime.conf" "$pkgdir/usr/share/dbus-1/system.d/com.github.nvprime.conf"
-    install -Dm644 "$srcdir/system/nvprime.service" "$pkgdir/usr/lib/systemd/system/nvprime.service"
-}
-```
+See the [Arch installation instructions](../README.md#arch-linux-x86_64). The package installs `nvprime` and `nvprime-sys` in `/usr/bin` and uses `/usr/bin/nvprime-sys` in its systemd service.
 
 ### Debian/Ubuntu (.deb)
 
