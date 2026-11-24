@@ -22,12 +22,13 @@
 
 The package installs `nvprime`, `nvprime-sys`, the systemd unit, and the D-Bus policy. Run `sudo systemctl enable --now nvprime.service` to start the daemon. Executables are installed under `/usr/bin`.
 
-Download the `.pkg.tar.zst` from [GitHub Releases](https://github.com/delfianto/nvprime/releases/latest)
-and install it with `sudo pacman -U ./<package-file>`, or build the package
-from the checksum-verified release archive with `makepkg -si`:
+Download the `nvprime` package from [GitHub Releases](https://github.com/delfianto/nvprime/releases/latest)
+and install it with `sudo pacman -U ./<package-file>`. If pacman asks to remove the
+previous package, answer `y`. You can also build the package from the
+checksum-verified release archive with `makepkg -si`:
 
 ```sh
-git clone --branch v0.2.1 https://github.com/delfianto/nvprime.git
+git clone --branch arch-v0.2.1-2 https://github.com/delfianto/nvprime.git
 cd nvprime/arch
 makepkg -si
 ```
