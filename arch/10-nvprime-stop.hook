@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = nvprime
+
+[Action]
+Description = Stopping NvPrime before replacing its executable...
+When = PreTransaction
+Exec = /usr/bin/sh -c '. /usr/share/libalpm/scripts/nvprime-install; pre_upgrade'
+AbortOnFail
+Depends = systemd

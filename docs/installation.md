@@ -161,6 +161,8 @@ For a manual install, disable and stop `nvprime.service` and remove the binaries
 
 See the [Arch installation instructions](../README.md#arch-linux-x86_64). The package builds from the checkout, installs `nvprime` and `nvprimed` in `/usr/bin`, and uses `/usr/bin/nvprimed` in `nvprime.service`.
 
+On a running system, the package stops `nvprime.service` before replacing the executable. If the service was running, it reloads systemd and starts the new daemon after extraction. Enable and start the service explicitly on a fresh install. Beginning with `0.4.0-1`, the installed pre-transaction hook can abort a later upgrade if systemd cannot stop the service.
+
 ### Debian/Ubuntu (.deb)
 
 ```bash

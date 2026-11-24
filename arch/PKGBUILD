@@ -1,5 +1,5 @@
 pkgname=nvprime
-pkgver=0.3.0
+pkgver=0.4.0
 pkgrel=1
 pkgdesc='GPU and CPU tuning wrapper for Linux gaming'
 arch=('x86_64')
@@ -13,6 +13,7 @@ conflicts=('nvprime-bin')
 replaces=('nvprime-bin')
 options=('!strip' '!debug')
 backup=('etc/nvprime.toml')
+install=nvprime.install
 
 # Run makepkg from the arch directory of the nvprime checkout.
 prepare() {
@@ -33,4 +34,6 @@ package() {
     install -Dm0644 system/nvprime.toml "$pkgdir/etc/nvprime.toml"
     install -Dm0644 system/nvprime.service "$pkgdir/usr/lib/systemd/system/nvprime.service"
     install -Dm0644 system/com.github.nvprime.conf "$pkgdir/usr/share/dbus-1/system.d/com.github.nvprime.conf"
+    install -Dm0644 "$startdir/10-nvprime-stop.hook" "$pkgdir/usr/share/libalpm/hooks/10-nvprime-stop.hook"
+    install -Dm0644 "$startdir/nvprime.install" "$pkgdir/usr/share/libalpm/scripts/nvprime-install"
 }

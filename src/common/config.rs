@@ -1,11 +1,15 @@
 use anyhow::Context;
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt,
+    path::PathBuf,
+};
 
 const DEFAULT_CONFIG_PATH: &str = "/etc/nvprime.toml";
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct Config {
     #[serde(default)]
     pub cpu: CpuTune,
@@ -15,6 +19,8 @@ pub struct Config {
 
     #[serde(default)]
     pub sys: SysTune,
+
+    pub launch: Option<LaunchTable>,
 
     #[serde(flatten)]
     pub env: HashMap<String, HashMap<String, EnvValue>>,
@@ -67,8 +73,7 @@ pub struct GpuTune {
     /// NVIDIA GPU uuid, get it from `nvidia-smi -L`
     pub gpu_uuid: Option<String>,
 
-    /// Path to Vulkan ICD JSON file, some game need this to be set
-    /// We set it with the default value just to be sure
+    /// Optional Vulkan driver manifest passed to the Vulkan loader.
     pub gpu_vlk_icd: String,
 
     /// Set the GPU power limit to highest
@@ -85,7 +90,7 @@ impl Default for GpuTune {
             enabled: false,
             gpu_name: None,
             gpu_uuid: None,
-            gpu_vlk_icd: "/usr/share/vulkan/icd.d/nvidia_icd.json".to_string(),
+            gpu_vlk_icd: String::new(),
             set_max_pwr: false,
             pwr_limit_tune: None,
         }
@@ -136,19 +141,83 @@ pub struct HooksConfig {
     pub shutdown: Option<String>,
 }
 
-use std::fmt;
-
-// ...
-
 #[derive(Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct GameConfig {
-    pub mangohud: bool,
+    pub mangohud: Option<bool>,
     pub mangohud_conf: Option<String>,
-    pub proton_log: bool,
-    pub proton_ntsync: bool,
-    pub proton_wayland: bool,
+    pub proton_log: Option<bool>,
+    pub proton_ntsync: Option<bool>,
+    pub proton_wayland: Option<bool>,
     pub wine_dll_overrides: Option<String>,
+    pub launch: LaunchConfig,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum LaunchTable {
+    Settings(LaunchConfig),
+    // Older configs can use [launch] as the environment group for launch.exe.
+    ExecutableEnv(BTreeMap<String, EnvValue>),
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct LaunchConfig {
+    pub proton: ProtonLaunchConfig,
+    pub mangohud: MangoHudLaunchConfig,
+    pub experimental: ExperimentalLaunchConfig,
+    pub env: BTreeMap<String, EnvValue>,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct ProtonLaunchConfig {
+    pub ntsync: Option<bool>,
+    pub wayland: Option<bool>,
+    pub log: Option<bool>,
+    pub log_dir: Option<String>,
+    pub game_drive: Option<bool>,
+    pub wine_dll_overrides: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct MangoHudLaunchConfig {
+    pub enabled: Option<bool>,
+    pub config: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct ExperimentalLaunchConfig {
+    pub dlss: DlssLaunchConfig,
+    pub nvidia: NvidiaLaunchConfig,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct DlssLaunchConfig {
+    pub super_resolution_preset: Option<String>,
+    pub ray_reconstruction_preset: Option<String>,
+    pub streamline_override: Option<bool>,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct NvidiaLaunchConfig {
+    pub experimental_perf_strategy: Option<bool>,
+    pub gsync_allowed: Option<bool>,
+    pub vrr_allowed: Option<bool>,
+    pub max_frames_allowed: Option<u32>,
+    pub yield_mode: Option<NvidiaYieldMode>,
+}
+
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum NvidiaYieldMode {
+    Nothing,
+    Usleep,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -169,11 +238,6 @@ impl fmt::Display for EnvValue {
             EnvValue::Boolean(b) => write!(f, "{}", if *b { "1" } else { "0" }),
         }
     }
-}
-
-impl EnvValue {
-    // Kept for backward compatibility if used directly, but implements via Display
-    // Actually clippy wants us to remove this if we impl Display
 }
 
 impl Config {
@@ -229,7 +293,7 @@ mod tests {
         assert!(!gpu.enabled);
         assert!(gpu.gpu_name.is_none());
         assert!(gpu.gpu_uuid.is_none());
-        assert_eq!(gpu.gpu_vlk_icd, "/usr/share/vulkan/icd.d/nvidia_icd.json");
+        assert!(gpu.gpu_vlk_icd.is_empty());
         assert!(!gpu.set_max_pwr);
         assert!(gpu.pwr_limit_tune.is_none());
     }
@@ -246,11 +310,11 @@ mod tests {
     #[test]
     fn test_game_config_defaults() {
         let game = GameConfig::default();
-        assert!(!game.mangohud);
+        assert!(game.mangohud.is_none());
         assert!(game.mangohud_conf.is_none());
-        assert!(!game.proton_log);
-        assert!(!game.proton_ntsync);
-        assert!(!game.proton_wayland);
+        assert!(game.proton_log.is_none());
+        assert!(game.proton_ntsync.is_none());
+        assert!(game.proton_wayland.is_none());
         assert!(game.wine_dll_overrides.is_none());
     }
 
@@ -339,9 +403,9 @@ wine_dll_overrides = "dinput8=n,b"
         assert_eq!(config.hook.shutdown, Some("echo 'Game ended'".to_string()));
 
         let game = config.game.get("testgame").unwrap();
-        assert!(game.mangohud);
+        assert_eq!(game.mangohud, Some(true));
         assert_eq!(game.mangohud_conf, Some("fps_only=1".to_string()));
-        assert!(game.proton_log);
+        assert_eq!(game.proton_log, Some(true));
     }
 
     #[test]

@@ -1,0 +1,47 @@
+_nvprime_restart_file=/run/nvprime-package-restart
+
+_nvprime_systemd_running() {
+    ! systemd-detect-virt --quiet --chroot && systemd-notify --booted
+}
+
+pre_install() {
+    _nvprime_systemd_running || return 0
+
+    local state
+    state=$(systemctl show --property=ActiveState --value nvprime.service) || return 1
+    case "$state" in
+        active|activating|reloading|refreshing)
+            : > "$_nvprime_restart_file" || return 1
+            if ! systemctl stop nvprime.service; then
+                rm -f -- "$_nvprime_restart_file"
+                printf '%s\n' 'Could not stop nvprime.service before replacing the executable.' >&2
+                return 1
+            fi
+            ;;
+        deactivating)
+            systemctl stop nvprime.service || return 1
+            ;;
+    esac
+}
+
+pre_upgrade() {
+    pre_install
+}
+
+post_install() {
+    _nvprime_systemd_running || return 0
+    [ -f "$_nvprime_restart_file" ] || return 0
+
+    systemctl daemon-reload && systemctl start nvprime.service &&
+        rm -f -- "$_nvprime_restart_file"
+}
+
+post_upgrade() {
+    post_install
+}
+
+pre_remove() {
+    _nvprime_systemd_running || return 0
+
+    systemctl stop nvprime.service && rm -f -- "$_nvprime_restart_file"
+}

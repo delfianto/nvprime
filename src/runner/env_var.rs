@@ -1,64 +1,26 @@
 use crate::common::Config;
-use crate::common::config::EnvValue;
+use crate::common::config::{EnvValue, LaunchConfig, LaunchTable, NvidiaYieldMode};
 use log::debug;
-use phf::{Map, phf_map};
 use std::collections::BTreeMap;
 
 const LOG: &str = "PROTON_LOG";
 const HUD: &str = "MANGOHUD";
 const HUD_CFG: &str = "MANGOHUD_CONFIG";
 const NTSYNC: &str = "PROTON_USE_NTSYNC";
+const NO_NTSYNC: &str = "PROTON_NO_NTSYNC";
 const WAYLAND: &str = "PROTON_ENABLE_WAYLAND";
+const WAYLAND_ALIAS: &str = "PROTON_USE_WAYLAND";
 const DXVK_GPU: &str = "DXVK_FILTER_DEVICE_NAME";
 const VKD3D_GPU: &str = "VKD3D_FILTER_DEVICE_NAME";
 const WINE_DLLS: &str = "WINEDLLOVERRIDES";
 
-/// Default values for environment variables
-static ENV_DEFAULTS: Map<&'static str, &'static str> = phf_map! {
-    // MangoHud settings
-    "MANGOHUD" => "0",
-    "MANGOHUD_CONFIG" => "preset=1",
-
-    // Proton logging flags
-    "PROTON_LOG" => "0",
-    "DXVK_LOG_LEVEL" => "info",
-    "DXVK_NVAPI_LOG_LEVEL" => "info",
-    "DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL" => "info",
-    "VKD3D_DEBUG" => "info",
-    "VKD3D_SHADER_DEBUG" => "info",
-    "WINEDEBUG" => "+err,+warn,-all",
-
-    // Proton tuneables
-    "PROTON_USE_NTSYNC" => "0",
-    "PROTON_ENABLE_WAYLAND" => "0",
-    "PROTON_SET_GAME_DRIVE" => "1",
-
-    // NVIDIA DLSS settings from dxvk-nvapi
-    "DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS" => "DLSSIndicator=0,DLSSGIndicator=0",
-
-    "DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE" => "on",
-    "DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION" => "render_preset_latest",
-
-    "DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE" => "on",
-    "DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION" => "render_preset_latest",
-
-    // The actual flag for PRIME rendering offload
-    "__NV_PRIME_RENDER_OFFLOAD" => "1",
-    "__GLX_VENDOR_LIBRARY_NAME" => "nvidia",
-    "__VK_LAYER_NV_optimus" => "NVIDIA_only",
-    "VK_ICD_FILENAMES" => "/usr/share/vulkan/icd.d/nvidia_icd.json",
-
-    // Tells the driver to prioritize performance over power saving,
-    // suppose to help the case where the GPU is not boosting under
-    // some game menu thus making the UI laggy
-    "__GL_ExperimentalPerfStrategy" => "1",
-
-    // Prevents the desktop compositor (GNOME/KDE) from double-syncing frames
-    "__GL_GSYNC_ALLOWED" => "1",
-    "__GL_MaxFramesAllowed" => "1",
-    "__GL_VRR_ALLOWED" => "1",
-    "__GL_YIELD" => "USLEEP",
-};
+const ENV_DEFAULTS: [(&str, &str); 5] = [
+    ("__NV_PRIME_RENDER_OFFLOAD", "1"),
+    ("__GLX_VENDOR_LIBRARY_NAME", "nvidia"),
+    ("__VK_LAYER_NV_optimus", "NVIDIA_only"),
+    (NTSYNC, "1"),
+    (WAYLAND, "1"),
+];
 
 pub struct EnvBuilder {
     vars: BTreeMap<String, String>,
@@ -66,12 +28,8 @@ pub struct EnvBuilder {
 
 impl EnvBuilder {
     pub fn new() -> Self {
-        debug!("Creating new environment builder");
         Self {
-            vars: ENV_DEFAULTS
-                .entries()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
+            vars: BTreeMap::from(ENV_DEFAULTS.map(|(key, value)| (key.into(), value.into()))),
         }
     }
 }
@@ -83,55 +41,158 @@ impl Default for EnvBuilder {
 }
 
 impl EnvBuilder {
-    fn set_str(&mut self, key: &str, val: &str) {
-        self.vars.insert(key.to_string(), val.to_string());
+    fn set_str(&mut self, key: &str, value: &str) {
+        self.vars.insert(key.to_string(), value.to_string());
     }
 
     fn set_bool(&mut self, key: &str, enabled: bool) {
-        self.set_str(key, if enabled { "1" } else { "0" })
+        self.set_str(key, if enabled { "1" } else { "0" });
     }
 
-    pub fn with_config(mut self, config: &Config, exe_name: &String) -> BTreeMap<String, String> {
-        debug!("Initializing environment values for game: {}", exe_name);
+    fn set_optional_bool(&mut self, key: &str, value: Option<bool>) {
+        if let Some(enabled) = value {
+            self.set_bool(key, enabled);
+        }
+    }
 
-        // `config.gpu.gpu_name` is an `Option<String>` and since `String`
-        // does not implement `Copy` we need to explicitly use reference
-        // when performing pattern matching.
-        if let Some(device) = &config.gpu.gpu_name {
-            let slice = device.as_str();
-            self.set_str(DXVK_GPU, slice);
-            self.set_str(VKD3D_GPU, slice);
+    fn set_optional_str(&mut self, key: &str, value: Option<&str>) {
+        if let Some(value) = value {
+            self.set_str(key, value);
+        }
+    }
+
+    fn set_ntsync(&mut self, enabled: bool) {
+        self.set_bool(NTSYNC, enabled);
+        self.set_bool(NO_NTSYNC, !enabled);
+    }
+
+    fn set_wayland(&mut self, enabled: bool) {
+        self.set_bool(WAYLAND, enabled);
+        self.set_bool(WAYLAND_ALIAS, enabled);
+    }
+
+    fn apply_experimental(&mut self, launch: &LaunchConfig) {
+        let dlss = &launch.experimental.dlss;
+        if let Some(preset) = &dlss.super_resolution_preset {
+            self.set_str("DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE", "on");
+            self.set_str(
+                "DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION",
+                preset,
+            );
+        }
+        if let Some(preset) = &dlss.ray_reconstruction_preset {
+            self.set_str("DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE", "on");
+            self.set_str(
+                "DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION",
+                preset,
+            );
+        }
+        if let Some(enabled) = dlss.streamline_override {
+            self.set_str(
+                "DXVK_NVAPI_DRS_SL_DLSS_OVERRIDE",
+                if enabled { "on" } else { "off" },
+            );
         }
 
-        // `config.game` is a `HashMap`, the `get` function will return
-        // `Option<&T> which already a reference itself, thus we do not
-        // need to access config through its reference.
-        if let Some(game) = config.game.get(exe_name) {
-            self.set_bool(HUD, game.mangohud);
-            self.set_bool(LOG, game.proton_log);
-            self.set_bool(NTSYNC, game.proton_ntsync);
-            self.set_bool(WAYLAND, game.proton_wayland);
+        let nvidia = &launch.experimental.nvidia;
+        self.set_optional_bool(
+            "__GL_ExperimentalPerfStrategy",
+            nvidia.experimental_perf_strategy,
+        );
+        self.set_optional_bool("__GL_GSYNC_ALLOWED", nvidia.gsync_allowed);
+        self.set_optional_bool("__GL_VRR_ALLOWED", nvidia.vrr_allowed);
+        if let Some(frames) = nvidia.max_frames_allowed {
+            self.set_str("__GL_MaxFramesAllowed", &frames.to_string());
+        }
+        if let Some(mode) = nvidia.yield_mode {
+            let value = match mode {
+                NvidiaYieldMode::Nothing => "NOTHING",
+                NvidiaYieldMode::Usleep => "USLEEP",
+            };
+            self.set_str("__GL_YIELD", value);
+        }
+    }
 
-            if let Some(hud_cfg) = &game.mangohud_conf {
-                self.set_str(HUD_CFG, hud_cfg);
-            }
+    fn apply_launch(&mut self, launch: &LaunchConfig) {
+        let proton = &launch.proton;
+        if let Some(enabled) = proton.ntsync {
+            self.set_ntsync(enabled);
+        }
+        if let Some(enabled) = proton.wayland {
+            self.set_wayland(enabled);
+        }
+        self.set_optional_bool(LOG, proton.log);
+        self.set_optional_str("PROTON_LOG_DIR", proton.log_dir.as_deref());
+        self.set_optional_bool("PROTON_SET_GAME_DRIVE", proton.game_drive);
+        self.set_optional_str(WINE_DLLS, proton.wine_dll_overrides.as_deref());
 
-            if let Some(dll_overrides) = &game.wine_dll_overrides {
-                self.set_str(WINE_DLLS, dll_overrides);
+        self.set_optional_bool(HUD, launch.mangohud.enabled);
+        self.set_optional_str(HUD_CFG, launch.mangohud.config.as_deref());
+        self.apply_experimental(launch);
+    }
+
+    fn apply_env<'a>(
+        &mut self,
+        vars: impl IntoIterator<Item = (&'a String, &'a EnvValue)>,
+        source: &str,
+    ) {
+        for (key, value) in vars {
+            debug!("Applying {key} from {source}");
+            self.set_str(key, &value.to_string());
+        }
+    }
+
+    pub fn with_config(mut self, config: &Config, exe_name: &str) -> BTreeMap<String, String> {
+        debug!("Initializing environment values for game: {exe_name}");
+
+        if let Some(device) = &config.gpu.gpu_name {
+            self = self.with_gpu_name(device);
+        }
+        if !config.gpu.gpu_vlk_icd.is_empty() {
+            self.set_str("VK_DRIVER_FILES", &config.gpu.gpu_vlk_icd);
+        }
+        let legacy_launch_env = match &config.launch {
+            Some(LaunchTable::Settings(launch)) => {
+                debug!("Applying [launch] settings");
+                self.apply_launch(launch);
+                self.apply_env(&launch.env, "[launch.env]");
+                None
             }
+            Some(LaunchTable::ExecutableEnv(env)) if exe_name == "launch" => Some(env),
+            _ => None,
+        };
+
+        let game = config.game.get(exe_name);
+        if let Some(game) = game {
+            debug!("Applying [game.{exe_name}] settings");
+            self.set_optional_bool(HUD, game.mangohud);
+            self.set_optional_bool(LOG, game.proton_log);
+            if let Some(enabled) = game.proton_ntsync {
+                self.set_ntsync(enabled);
+            }
+            if let Some(enabled) = game.proton_wayland {
+                self.set_wayland(enabled);
+            }
+            self.set_optional_str(HUD_CFG, game.mangohud_conf.as_deref());
+            self.set_optional_str(WINE_DLLS, game.wine_dll_overrides.as_deref());
+            self.apply_launch(&game.launch);
         }
 
         if let Some(env) = config.env.get(exe_name) {
-            for (key, val) in env {
-                self.vars.insert(key.to_string(), val.to_string());
-            }
+            self.apply_env(env, &format!("[{exe_name}]"));
+        }
+        if let Some(env) = legacy_launch_env {
+            self.apply_env(env, "[launch] executable group");
+        }
+        if let Some(game) = game {
+            self.apply_env(&game.launch.env, &format!("[game.{exe_name}.launch.env]"));
         }
 
         self.build()
     }
 
-    pub fn with_env(mut self, key: &str, val: &str) -> Self {
-        self.set_str(key, val);
+    pub fn with_env(mut self, key: &str, value: &str) -> Self {
+        self.set_str(key, value);
         self
     }
 
@@ -152,19 +213,20 @@ impl EnvBuilder {
         self.with_bool(LOG, enabled)
     }
 
-    pub fn with_ntsync(self, enabled: bool) -> Self {
-        self.with_bool(NTSYNC, enabled)
+    pub fn with_ntsync(mut self, enabled: bool) -> Self {
+        self.set_ntsync(enabled);
+        self
     }
 
-    pub fn with_wayland(self, enabled: bool) -> Self {
-        self.with_bool(WAYLAND, enabled)
+    pub fn with_wayland(mut self, enabled: bool) -> Self {
+        self.set_wayland(enabled);
+        self
     }
 
     pub fn with_dll_overrides(self, value: &str) -> Self {
         self.with_env(WINE_DLLS, value)
     }
 
-    /// Build the final environment map
     pub fn build(self) -> BTreeMap<String, String> {
         debug!(
             "Building final environment map with {} variables",
@@ -173,30 +235,13 @@ impl EnvBuilder {
         self.vars
     }
 
-    /// Merge global environment variables from config
     pub fn merge_global(&mut self, global: &BTreeMap<String, EnvValue>) {
-        debug!("Merging {} global environment variables", global.len());
-        for (key, value) in global {
-            let value_str = value.to_string();
-            debug!("  Adding global: {} = {}", key, value_str);
-            self.vars.insert(key.clone(), value_str);
-        }
+        self.apply_env(global, "global settings");
     }
 
-    /// Merge executable-specific environment variables
     pub fn merge_executable(&mut self, exe_vars: Option<&BTreeMap<String, EnvValue>>) {
         if let Some(vars) = exe_vars {
-            debug!(
-                "Merging {} executable-specific environment variables",
-                vars.len()
-            );
-            for (key, val) in vars {
-                let str = val.to_string();
-                debug!("  Adding executable-specific: {} = {}", key, str);
-                self.vars.insert(key.clone(), str);
-            }
-        } else {
-            debug!("No executable-specific environment variables to merge");
+            self.apply_env(vars, "executable settings");
         }
     }
 }
@@ -204,7 +249,7 @@ impl EnvBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{Config, GameConfig, GpuTune};
+    use crate::common::config::Config;
 
     #[test]
     fn test_env_builder_new() {
@@ -264,6 +309,7 @@ mod tests {
         let builder = EnvBuilder::new().with_ntsync(true);
         let vars = builder.build();
         assert_eq!(vars.get(NTSYNC), Some(&"1".to_string()));
+        assert_eq!(vars.get(NO_NTSYNC), Some(&"0".to_string()));
     }
 
     #[test]
@@ -271,6 +317,7 @@ mod tests {
         let builder = EnvBuilder::new().with_wayland(true);
         let vars = builder.build();
         assert_eq!(vars.get(WAYLAND), Some(&"1".to_string()));
+        assert_eq!(vars.get(WAYLAND_ALIAS), Some(&"1".to_string()));
     }
 
     #[test]
@@ -299,77 +346,152 @@ mod tests {
 
     #[test]
     fn test_env_builder_with_config_minimal() {
-        let config = Config {
-            cpu: Default::default(),
-            gpu: GpuTune::default(),
-            sys: Default::default(),
-            env: Default::default(),
-            game: Default::default(),
-            hook: Default::default(),
-        };
+        let config = Config::default();
 
-        let vars = EnvBuilder::new().with_config(&config, &"testgame".to_string());
+        let vars = EnvBuilder::new().with_config(&config, "testgame");
         assert!(!vars.is_empty());
         assert_eq!(
             vars.get("__NV_PRIME_RENDER_OFFLOAD"),
             Some(&"1".to_string())
         );
+        assert_eq!(vars.get(NTSYNC).map(String::as_str), Some("1"));
+        assert_eq!(vars.get(WAYLAND).map(String::as_str), Some("1"));
     }
 
     #[test]
     fn test_env_builder_with_config_gpu_name() {
-        let mut config = Config {
-            cpu: Default::default(),
-            gpu: GpuTune::default(),
-            sys: Default::default(),
-            env: Default::default(),
-            game: Default::default(),
-            hook: Default::default(),
-        };
+        let mut config = Config::default();
         config.gpu.gpu_name = Some("Test GPU".to_string());
 
-        let vars = EnvBuilder::new().with_config(&config, &"testgame".to_string());
+        let vars = EnvBuilder::new().with_config(&config, "testgame");
         assert_eq!(vars.get(DXVK_GPU), Some(&"Test GPU".to_string()));
         assert_eq!(vars.get(VKD3D_GPU), Some(&"Test GPU".to_string()));
     }
 
     #[test]
+    fn test_env_builder_keeps_proton_defaults_with_mangohud() {
+        let config: Config = toml::from_str("[game.testgame]\nmangohud = true").unwrap();
+
+        let vars = EnvBuilder::new().with_config(&config, "testgame");
+        assert_eq!(vars.get(HUD).map(String::as_str), Some("1"));
+        assert_eq!(vars.get(NTSYNC).map(String::as_str), Some("1"));
+        assert_eq!(vars.get(WAYLAND).map(String::as_str), Some("1"));
+        assert!(!vars.contains_key(NO_NTSYNC));
+        assert!(!vars.contains_key(WAYLAND_ALIAS));
+    }
+
+    #[test]
     fn test_env_builder_with_config_game_specific() {
-        let mut config = Config {
-            cpu: Default::default(),
-            gpu: GpuTune::default(),
-            sys: Default::default(),
-            env: Default::default(),
-            game: Default::default(),
-            hook: Default::default(),
-        };
+        let config: Config = toml::from_str(
+            r#"
+[game.testgame]
+mangohud = true
+mangohud_conf = "fps_only=1"
+proton_log = true
+proton_ntsync = false
+proton_wayland = false
+wine_dll_overrides = "dinput8=n,b"
+"#,
+        )
+        .unwrap();
 
-        let game_config = GameConfig {
-            mangohud: true,
-            mangohud_conf: Some("fps_only=1".to_string()),
-            proton_log: true,
-            proton_ntsync: true,
-            proton_wayland: false,
-            wine_dll_overrides: Some("dinput8=n,b".to_string()),
-        };
-        config.game.insert("testgame".to_string(), game_config);
-
-        let vars = EnvBuilder::new().with_config(&config, &"testgame".to_string());
+        let vars = EnvBuilder::new().with_config(&config, "testgame");
         assert_eq!(vars.get(HUD), Some(&"1".to_string()));
         assert_eq!(vars.get(HUD_CFG), Some(&"fps_only=1".to_string()));
         assert_eq!(vars.get(LOG), Some(&"1".to_string()));
-        assert_eq!(vars.get(NTSYNC), Some(&"1".to_string()));
+        assert_eq!(vars.get(NTSYNC), Some(&"0".to_string()));
+        assert_eq!(vars.get(NO_NTSYNC), Some(&"1".to_string()));
         assert_eq!(vars.get(WAYLAND), Some(&"0".to_string()));
+        assert_eq!(vars.get(WAYLAND_ALIAS), Some(&"0".to_string()));
         assert_eq!(vars.get(WINE_DLLS), Some(&"dinput8=n,b".to_string()));
     }
 
     #[test]
-    fn test_env_defaults_contains_required_vars() {
-        let builder = EnvBuilder::new();
-        assert!(builder.vars.contains_key("__NV_PRIME_RENDER_OFFLOAD"));
-        assert!(builder.vars.contains_key("__GLX_VENDOR_LIBRARY_NAME"));
-        assert!(builder.vars.contains_key("VK_ICD_FILENAMES"));
-        assert!(builder.vars.contains_key("MANGOHUD"));
-        assert!(builder.vars.contains_key("PROTON_LOG"));
+    fn test_env_defaults_only_request_offload_and_proton_features() {
+        let vars = EnvBuilder::new().build();
+        assert_eq!(vars.len(), 5);
+        assert!(vars.contains_key("__NV_PRIME_RENDER_OFFLOAD"));
+        assert!(vars.contains_key("__GLX_VENDOR_LIBRARY_NAME"));
+        assert!(vars.contains_key("__VK_LAYER_NV_optimus"));
+        assert!(vars.contains_key(NTSYNC));
+        assert!(vars.contains_key(WAYLAND));
+    }
+
+    #[test]
+    fn test_launch_config_scope_and_override_order() {
+        let config: Config = toml::from_str(
+            r#"
+[gpu]
+gpu_vlk_icd = "/custom/driver.json"
+
+[launch.proton]
+log = false
+wayland = true
+
+[launch.experimental.dlss]
+super_resolution_preset = "RENDER_PRESET_K"
+streamline_override = true
+
+[launch.env]
+PROTON_LOG = true
+
+[game.testgame]
+mangohud = true
+
+[game.testgame.launch.proton]
+log = false
+wayland = false
+
+[game.testgame.launch.mangohud]
+enabled = false
+
+[game.testgame.launch.experimental.nvidia]
+max_frames_allowed = 2
+yield_mode = "usleep"
+
+[testgame]
+MANGOHUD = true
+PROTON_LOG_DIR = "/tmp"
+
+[game.testgame.launch.env]
+MANGOHUD = false
+VKD3D_SWAPCHAIN_PRESENT_MODE = "FIFO_LATEST_READY"
+"#,
+        )
+        .unwrap();
+
+        let global = EnvBuilder::new().with_config(&config, "othergame");
+        assert_eq!(global[LOG], "1");
+        assert_eq!(global[WAYLAND], "1");
+        assert!(!global.contains_key(HUD));
+        assert_eq!(global["VK_DRIVER_FILES"], "/custom/driver.json");
+
+        let game = EnvBuilder::new().with_config(&config, "testgame");
+        assert_eq!(game[LOG], "0");
+        assert_eq!(game[WAYLAND], "0");
+        assert_eq!(game[WAYLAND_ALIAS], "0");
+        assert_eq!(game[HUD], "0");
+        assert_eq!(game["PROTON_LOG_DIR"], "/tmp");
+        assert_eq!(game["DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE"], "on");
+        assert_eq!(
+            game["DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION"],
+            "RENDER_PRESET_K"
+        );
+        assert_eq!(game["DXVK_NVAPI_DRS_SL_DLSS_OVERRIDE"], "on");
+        assert!(!game.contains_key("DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE"));
+        assert_eq!(game["__GL_MaxFramesAllowed"], "2");
+        assert_eq!(game["__GL_YIELD"], "USLEEP");
+        assert_eq!(game["VKD3D_SWAPCHAIN_PRESENT_MODE"], "FIFO_LATEST_READY");
+    }
+
+    #[test]
+    fn test_launch_executable_keeps_legacy_environment_group() {
+        let config: Config = toml::from_str("[launch]\nMANGOHUD = true").unwrap();
+        assert_eq!(EnvBuilder::new().with_config(&config, "launch")[HUD], "1");
+        assert!(
+            !EnvBuilder::new()
+                .with_config(&config, "othergame")
+                .contains_key(HUD)
+        );
     }
 }

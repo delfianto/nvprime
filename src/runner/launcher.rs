@@ -235,14 +235,7 @@ mod tests {
     }
 
     fn create_test_config() -> Config {
-        Config {
-            cpu: Default::default(),
-            gpu: Default::default(),
-            sys: Default::default(),
-            env: Default::default(),
-            game: Default::default(),
-            hook: Default::default(),
-        }
+        Config::default()
     }
 
     #[test]
