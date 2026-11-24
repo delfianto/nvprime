@@ -120,10 +120,15 @@ NvPrime sets these launch defaults. Vulkan uses normal driver discovery, and `[g
 | `__NV_PRIME_RENDER_OFFLOAD` | `1` |
 | `__GLX_VENDOR_LIBRARY_NAME` | `nvidia` |
 | `__VK_LAYER_NV_optimus` | `NVIDIA_only` |
+| `DXVK_LOG_LEVEL`, `DXVK_NVAPI_LOG_LEVEL`, `DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL` | `info` |
+| `VKD3D_DEBUG`, `VKD3D_SHADER_DEBUG` | `info` |
+| `WINEDEBUG` | `-all,err+all` |
+
+The Wine filter keeps errors and suppresses `fixme`, warning, and trace messages. Enable Proton's log file with `PROTON_LOG=1 nvprime %command%` in Steam or `log = true` in `[launch.proton]` or `[game.<name>.launch.proton]`. To add warnings for a specific Wine channel, set `WINEDEBUG` in `[launch.env]` or `[game.<name>.launch.env]` to a filter such as `"-all,err+all,warn+dll"`. [Wine manual](https://man.archlinux.org/man/wine.1.en#WINEDEBUG)
 
 ### Launch Settings `[launch]`
 
-Set global preferences under `[launch]` and use the same tables under `[game.<name>.launch]` for a specific executable. Omitted settings inherit the next available value. For optional features such as MangoHud, DLSS and logging, an omitted setting can come from the shell, Proton's `user_settings.py`, or the application's default. An explicit `false` sends the feature's disabled value.
+Set global preferences under `[launch]` and use the same tables under `[game.<name>.launch]` for a specific executable. Omitted settings inherit the next available value. For optional features such as MangoHud, DLSS and Proton log file creation, an omitted setting can come from the shell, Proton's `user_settings.py`, or the application's default. An explicit `false` sends the feature's disabled value.
 
 | Table | Options |
 | --- | --- |
@@ -206,7 +211,7 @@ The Witcher 3 Remastered ships NVIDIA Streamline. For an intentional preset over
 | `__NV_PRIME_RENDER_OFFLOAD`, `__GLX_VENDOR_LIBRARY_NAME`, `__VK_LAYER_NV_optimus` | Keep for offload. They request the NVIDIA offload path, select NVIDIA for GLX, and prefer NVIDIA devices in Vulkan. `gpu_name` sets `DXVK_FILTER_DEVICE_NAME` and `VKD3D_FILTER_DEVICE_NAME` to pick a specific card when more than one NVIDIA GPU is visible. [NVIDIA PRIME guide](https://download.nvidia.com/XFree86/Linux-x86_64/620.73.04/README/primerenderoffload.html) · [DXVK filtering](https://github.com/doitsujin/dxvk#device-filtering) · [VKD3D-Proton environment](https://github.com/HansKristian-Work/vkd3d-proton#environment-variables) |
 | `VK_ICD_FILENAMES` | Deprecated by the Vulkan Loader. Normal discovery with PRIME enabled enumerated the RTX 4080 first on the checked machine. Keep an explicit manifest override as an opt-in where needed and use `VK_DRIVER_FILES` on current loaders. [Khronos driver discovery](https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderDriverInterface.md#overriding-the-default-driver-discovery) |
 | `MANGOHUD`, `MANGOHUD_CONFIG` | Active overlay settings. Make the overlay and `preset=1` preferences explicit so the launch can otherwise inherit the user's settings. [MangoHud configuration](https://github.com/flightlessmango/MangoHud#hud-configuration) |
-| `PROTON_LOG`, `DXVK_LOG_LEVEL`, `DXVK_NVAPI_LOG_LEVEL`, `DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL`, `VKD3D_DEBUG`, `VKD3D_SHADER_DEBUG`, `WINEDEBUG` | Debugging controls. Make them opt-in. The checked Proton-CachyOS build supplies quiet defaults for Wine, DXVK, and VKD3D when unset. [Proton runtime options](https://github.com/ValveSoftware/Proton#runtime-config-options) · [DXVK-NVAPI logging](https://github.com/jp7677/dxvk-nvapi#logging) · [VKD3D-Proton environment](https://github.com/HansKristian-Work/vkd3d-proton#environment-variables) |
+| `PROTON_LOG`, `DXVK_LOG_LEVEL`, `DXVK_NVAPI_LOG_LEVEL`, `DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL`, `VKD3D_DEBUG`, `VKD3D_SHADER_DEBUG`, `WINEDEBUG` | Proton log file creation is opt-in. NvPrime supplies Wine, DXVK, NVAPI, and VKD3D verbosity defaults as listed above. [Proton runtime options](https://github.com/ValveSoftware/Proton#runtime-config-options) · [DXVK-NVAPI logging](https://github.com/jp7677/dxvk-nvapi#logging) · [VKD3D-Proton environment](https://github.com/HansKristian-Work/vkd3d-proton#environment-variables) |
 | `PROTON_USE_NTSYNC`, `PROTON_ENABLE_WAYLAND` | The NTSync enable flag is legacy compatibility. Proton 11 auto-enables NTSync where supported and uses `PROTON_NO_NTSYNC` for opt-outs. Request Wayland on builds that support it and keep both per-game workarounds. [CachyOS NTSync change](https://github.com/CachyOS/proton-cachyos/blob/cachyos_main/CHANGELOG.md#version-110-20260428) |
 | `PROTON_SET_GAME_DRIVE` | Treat the `S:` mapping as an explicit preference. Current CachyOS already enables it for most titles. |
 | `DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS` | A debugging control that writes NGX registry values in the Wine prefix. The old default wrote values that hid the indicators. Use an explicit environment override to change the prefix's preference. [DXVK-NVAPI registry implementation](https://github.com/jp7677/dxvk-nvapi/blob/0f26995d8126617d4d99f62c9571715fc7765da1/src/util/util_ngx_debug.h) |

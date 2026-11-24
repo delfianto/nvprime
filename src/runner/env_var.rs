@@ -14,12 +14,18 @@ const DXVK_GPU: &str = "DXVK_FILTER_DEVICE_NAME";
 const VKD3D_GPU: &str = "VKD3D_FILTER_DEVICE_NAME";
 const WINE_DLLS: &str = "WINEDLLOVERRIDES";
 
-const ENV_DEFAULTS: [(&str, &str); 5] = [
+const ENV_DEFAULTS: [(&str, &str); 11] = [
     ("__NV_PRIME_RENDER_OFFLOAD", "1"),
     ("__GLX_VENDOR_LIBRARY_NAME", "nvidia"),
     ("__VK_LAYER_NV_optimus", "NVIDIA_only"),
     (NTSYNC, "1"),
     (WAYLAND, "1"),
+    ("DXVK_LOG_LEVEL", "info"),
+    ("DXVK_NVAPI_LOG_LEVEL", "info"),
+    ("DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL", "info"),
+    ("VKD3D_DEBUG", "info"),
+    ("VKD3D_SHADER_DEBUG", "info"),
+    ("WINEDEBUG", "-all,err+all"),
 ];
 
 pub struct EnvBuilder {
@@ -407,14 +413,15 @@ wine_dll_overrides = "dinput8=n,b"
     }
 
     #[test]
-    fn test_env_defaults_only_request_offload_and_proton_features() {
-        let vars = EnvBuilder::new().build();
-        assert_eq!(vars.len(), 5);
-        assert!(vars.contains_key("__NV_PRIME_RENDER_OFFLOAD"));
-        assert!(vars.contains_key("__GLX_VENDOR_LIBRARY_NAME"));
-        assert!(vars.contains_key("__VK_LAYER_NV_optimus"));
-        assert!(vars.contains_key(NTSYNC));
-        assert!(vars.contains_key(WAYLAND));
+    fn test_logging_defaults_preserve_proton_log_inheritance() {
+        let vars = EnvBuilder::new().with_config(&Config::default(), "testgame");
+        assert!(!vars.contains_key(LOG));
+        assert_eq!(vars["DXVK_LOG_LEVEL"], "info");
+        assert_eq!(vars["DXVK_NVAPI_LOG_LEVEL"], "info");
+        assert_eq!(vars["DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL"], "info");
+        assert_eq!(vars["VKD3D_DEBUG"], "info");
+        assert_eq!(vars["VKD3D_SHADER_DEBUG"], "info");
+        assert_eq!(vars["WINEDEBUG"], "-all,err+all");
     }
 
     #[test]
@@ -456,6 +463,7 @@ PROTON_LOG_DIR = "/tmp"
 [game.testgame.launch.env]
 MANGOHUD = false
 VKD3D_SWAPCHAIN_PRESENT_MODE = "FIFO_LATEST_READY"
+WINEDEBUG = "-all,+seh"
 "#,
         )
         .unwrap();
@@ -482,6 +490,7 @@ VKD3D_SWAPCHAIN_PRESENT_MODE = "FIFO_LATEST_READY"
         assert_eq!(game["__GL_MaxFramesAllowed"], "2");
         assert_eq!(game["__GL_YIELD"], "USLEEP");
         assert_eq!(game["VKD3D_SWAPCHAIN_PRESENT_MODE"], "FIFO_LATEST_READY");
+        assert_eq!(game["WINEDEBUG"], "-all,+seh");
     }
 
     #[test]
