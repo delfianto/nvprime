@@ -163,6 +163,8 @@ See the [Arch installation instructions](../README.md#arch-linux-x86_64). The pa
 
 On a running system, the package stops `nvprime.service` before replacing the executable. If the service was running, it reloads systemd and starts the new daemon after extraction. Enable and start the service explicitly on a fresh install. Beginning with `0.4.0-1`, the installed pre-transaction hook can abort a later upgrade if systemd cannot stop the service.
 
+GitHub Actions builds the Arch package in an Arch Linux container and uploads it as a workflow artifact. A version tag such as `v0.4.1` must match the version in `arch/PKGBUILD`. After CI passes for that tag, the package is attached to its GitHub release. If GitHub Actions creates the release, it uses the tag message for the release notes.
+
 ### Debian/Ubuntu (.deb)
 
 ```bash
