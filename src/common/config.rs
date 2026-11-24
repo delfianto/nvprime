@@ -1,8 +1,9 @@
-use log::{debug, error, info};
+use anyhow::Context;
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
-const CONFIG_FILE: &str = "nvprime.conf";
+const DEFAULT_CONFIG_PATH: &str = "/etc/nvprime.toml";
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -177,13 +178,8 @@ impl EnvValue {
 
 impl Config {
     pub fn load() -> anyhow::Result<Self> {
-        debug!("Locating configuration directory");
-        let config_path = dirs::config_dir()
-            .ok_or_else(|| {
-                error!("Could not find system config directory");
-                anyhow::anyhow!("Could not find config directory")
-            })?
-            .join(CONFIG_FILE);
+        let config_path = std::env::var_os("NVPRIME_CONFIG")
+            .map_or_else(|| PathBuf::from(DEFAULT_CONFIG_PATH), PathBuf::from);
 
         Self::load_file(config_path)
     }
@@ -191,20 +187,13 @@ impl Config {
     pub fn load_file(config_path: PathBuf) -> anyhow::Result<Self> {
         info!("Loading configuration from: {}", config_path.display());
 
-        let config_str = std::fs::read_to_string(&config_path).map_err(|e| {
-            error!(
-                "Failed to read config file '{}': {}",
-                config_path.display(),
-                e
-            );
-            e
-        })?;
+        let config_str = std::fs::read_to_string(&config_path)
+            .with_context(|| format!("Failed to read config file '{}'", config_path.display()))?;
 
         debug!("Configuration file size: {} bytes", config_str.len());
 
-        let config: Config = toml::from_str(&config_str).map_err(|e| {
-            error!("Failed to parse TOML configuration: {}", e);
-            e
+        let config: Config = toml::from_str(&config_str).with_context(|| {
+            format!("Invalid TOML configuration in '{}'", config_path.display())
         })?;
 
         debug!("Configuration parsed successfully");
@@ -278,6 +267,15 @@ mod tests {
     fn test_minimal_config_parsing() {
         let toml_content = r#""#;
         let config: Config = toml::from_str(toml_content).unwrap();
+        assert!(!config.cpu.enabled);
+        assert!(!config.gpu.enabled);
+        assert!(!config.sys.enabled);
+    }
+
+    #[test]
+    fn test_packaged_config_parses_with_tuning_disabled() {
+        let config: Config = toml::from_str(include_str!("../../system/nvprime.toml")).unwrap();
+
         assert!(!config.cpu.enabled);
         assert!(!config.gpu.enabled);
         assert!(!config.sys.enabled);

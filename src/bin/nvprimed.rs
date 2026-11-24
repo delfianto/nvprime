@@ -9,7 +9,7 @@ use tokio::signal::unix::{SignalKind, signal};
 async fn main() -> Result<()> {
     logging::init(true).context("Failed to initialize logging")?;
 
-    info!("Starting nvprime system daemon");
+    info!("Starting nvprimed");
 
     let config = Config::load().context("Failed to load configuration")?;
 

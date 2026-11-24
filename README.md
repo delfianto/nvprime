@@ -12,27 +12,27 @@
 
 ## Documentation
 
-- **[Installation Guide](docs/INSTALLATION.md)**: System requirements and installation steps.
-- **[Configuration Guide](docs/CONFIGURATION.md)**: Detailed reference for `nvprime.conf` options.
-- **[Development & Usage](docs/DEVELOPMENT.md)**: How to build, test, and use the development tools.
+- **[Installation Guide](docs/installation.md)** covers system requirements and installation.
+- **[Configuration Guide](docs/configuration.md)** covers `nvprime.toml` options.
+- **[Development & Usage](docs/development.md)** covers building, testing, and using the development tools.
 
 ## Quick Start
 
 ### Arch Linux (x86_64)
 
-The package installs `nvprime`, `nvprime-sys`, the systemd unit, and the D-Bus policy. Run `sudo systemctl enable --now nvprime.service` to start the daemon. Executables are installed under `/usr/bin`.
+The package installs `nvprime` and `nvprimed` in `/usr/bin`, along with the systemd unit, D-Bus policy, and `/etc/nvprime.toml`. Pacman preserves local edits to the configuration on upgrades.
 
-Download the `nvprime` package from [GitHub Releases](https://github.com/delfianto/nvprime/releases/latest)
-and install it with `sudo pacman -U ./<package-file>`. If pacman asks to remove the
-previous package, answer `y`. You can also build the package from the
-checksum-verified release archive with `makepkg -si`:
+Build and install the package from the repository checkout.
 
 ```sh
-git clone --branch arch-v0.2.1-2 https://github.com/delfianto/nvprime.git
+git clone https://github.com/delfianto/nvprime.git
 cd nvprime/arch
 makepkg -si
+sudo systemctl enable nvprime.service
+sudo systemctl restart nvprime.service
 ```
 
+If you previously installed a local systemd unit, review it before switching to the package. See the [migration steps](docs/installation.md#upgrading-from-nvprime-sys).
 
 ### Build from source
 

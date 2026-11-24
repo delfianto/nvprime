@@ -1,10 +1,9 @@
 [package]
 name = "nvprime"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.100.0"
 default-run = "nvprime"
-authors = ["The quick brown fox jumps over the lazy dog"]
 description = "Minimalist NVIDIA PRIME render offload wrapper with config support"
 license = "MIT"
 
@@ -13,13 +12,12 @@ name = "nvprime"
 path = "src/bin/nvprime.rs"
 
 [[bin]]
-name = "nvprime-sys"
-path = "src/bin/nvprime_sys.rs"
+name = "nvprimed"
+path = "src/bin/nvprimed.rs"
 
 [dependencies]
 anyhow = "1"
 chrono = "0.4"
-dirs = "7"
 env_logger = "0.11"
 libc = "0.2"
 log = "0.4"
@@ -29,7 +27,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
 toml = "1.2"
-zbus = "6"
+zbus = { version = "6", features = ["tokio"] }
 
 [dev-dependencies]
 mockall = "0.15"

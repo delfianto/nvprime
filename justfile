@@ -31,8 +31,8 @@
 
 # Space-separated cargo binary names (must match [[bin]].name / package default).
 # Single-bin:  bins := "zentools"
-# Multi-bin:   bins := "nvprime nvprime-sys"
-bins := "nvprime nvprime-sys"
+# Multi-bin:   bins := "nvprime nvprimed"
+bins := "nvprime nvprimed"
 
 # Binary `run` invokes (must be one of `bins`). Single-bin: same as bins.
 primary := "nvprime"
@@ -341,22 +341,30 @@ clean:
 
 unit_src := "system/nvprime.service"
 dbus_src := "system/com.github.nvprime.conf"
+config_src := "system/nvprime.toml"
 unit_dst := "/etc/systemd/system/nvprime.service"
 dbus_dst := "/etc/dbus-1/system.d/com.github.nvprime.conf"
+config_dst := "/etc/nvprime.toml"
 unit_name := "nvprime.service"
 
 setup:
     #!/usr/bin/env bash
     set -euo pipefail
     just install --system
-    sudo install -Dm644 "{{unit_src}}" "{{unit_dst}}"
+    if ! sudo test -e "{{config_dst}}"; then
+        sudo install -Dm644 "{{config_src}}" "{{config_dst}}"
+        echo "installed {{config_dst}}"
+    fi
+    sed 's|^ExecStart=/usr/bin/nvprimed$|ExecStart={{sys_dir}}/nvprimed|' "{{unit_src}}" |
+        sudo install -Dm644 /dev/stdin "{{unit_dst}}"
     echo "installed {{unit_dst}}"
     if [ -n "{{dbus_src}}" ]; then
         sudo install -Dm644 "{{dbus_src}}" "{{dbus_dst}}"
         echo "installed {{dbus_dst}}"
     fi
     sudo systemctl daemon-reload
-    sudo systemctl enable --now "{{unit_name}}"
+    sudo systemctl enable "{{unit_name}}"
+    sudo systemctl restart "{{unit_name}}"
     systemctl status "{{unit_name}}" --no-pager
 
 teardown:
@@ -386,4 +394,4 @@ status:
     systemctl status "{{unit_name}}" --no-pager
 
 test-dbus:
-    busctl call com.github.nvprime /com/github/nvprime com.github.nvprime.Service ping
+    busctl call com.github.nvprime /com/github/nvprime com.github.nvprime.Service Ping

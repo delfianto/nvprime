@@ -2,53 +2,24 @@
 
 # System Integration Files
 
-This directory contains all system-level configuration files and installation scripts for nvprime.
+The `system/` directory contains the configuration files used by the Arch package and source installs.
 
 ## Directory Structure
 
 ```
 system/
-├── install.sh                    # Installation/uninstallation script
 ├── com.github.nvprime.conf       # D-Bus system policy
 ├── nvprime.service               # Systemd service unit
-└── README.md                     # This file
+└── nvprime.toml                  # Default system-wide configuration
 ```
 
-## Installation Script
-
-The `install.sh` script handles all system integration with proper root checking and error handling.
-
-### Usage
-
-```bash
-# Install binaries and configuration
-sudo ./install.sh install
-
-# Install and enable the daemon service
-sudo ./install.sh install-service
-
-# Remove all installed files
-sudo ./install.sh uninstall
-
-# Show installation status
-./install.sh status
-```
-
-### Features
-
-- **Root Check:** Automatically verifies root privileges
-- **Binary Validation:** Checks that release binaries exist before installing
-- **Colored Output:** Clear visual feedback with color-coded messages
-- **Error Handling:** Proper error messages and exit codes
-- **Status Display:** Shows what's installed and service state
-- **Idempotent:** Safe to run multiple times
-
-### What Gets Installed
+## Manual Installation Paths
 
 | Component | Source | Destination | Permissions |
 |-----------|--------|-------------|-------------|
 | Client binary | `target/release/nvprime` | `/usr/local/bin/nvprime` | `755` (rwxr-xr-x) |
-| Daemon binary | `target/release/nvprime-sys` | `/usr/local/bin/nvprime-sys` | `755` (rwxr-xr-x) |
+| Daemon binary | `target/release/nvprimed` | `/usr/local/bin/nvprimed` | `755` (rwxr-xr-x) |
+| Configuration | `system/nvprime.toml` | `/etc/nvprime.toml` | `644` (rw-r--r--) |
 | D-Bus policy | `com.github.nvprime.conf` | `/usr/share/dbus-1/system.d/` | `644` (rw-r--r--) |
 | Systemd service | `nvprime.service` | `/usr/lib/systemd/system/` | `644` (rw-r--r--) |
 
@@ -86,7 +57,7 @@ After=network.target
 [Service]
 Type=dbus
 BusName=com.github.nvprime
-ExecStart=/usr/local/bin/nvprime-sys
+ExecStart=/usr/bin/nvprimed
 Restart=on-failure
 User=root
 
@@ -102,20 +73,17 @@ WantedBy=multi-user.target
 
 ## Using with Just
 
-The installation script integrates with the `justfile` for convenient usage:
+`just setup` installs the binaries in `/usr/local/bin`, adjusts the installed unit's `ExecStart` to match, and installs the D-Bus policy under `/etc`. It creates `/etc/nvprime.toml` if needed.
 
 ```bash
-# Build and install
-just install
-
 # Build, install, and enable service
-just install-service
+just setup
 
-# Remove everything
-just uninstall
+# Remove source-installed binaries and service integration
+just teardown
 
 # Check installation status
-just show-installed
+just status
 ```
 
 ## Manual Installation
@@ -128,39 +96,35 @@ cargo build --release
 
 # Install binaries (requires root)
 sudo install -Dm755 target/release/nvprime /usr/local/bin/nvprime
-sudo install -Dm755 target/release/nvprime-sys /usr/local/bin/nvprime-sys
+sudo install -Dm755 target/release/nvprimed /usr/local/bin/nvprimed
+
+# Install the default config if needed
+if ! sudo test -e /etc/nvprime.toml; then
+    sudo install -Dm644 system/nvprime.toml /etc/nvprime.toml
+fi
 
 # Install D-Bus configuration
 sudo install -Dm644 system/com.github.nvprime.conf /usr/share/dbus-1/system.d/com.github.nvprime.conf
 
-# Install systemd service
-sudo install -Dm644 system/nvprime.service /usr/lib/systemd/system/nvprime.service
+# Install the unit with the path for a manual install
+sed 's|^ExecStart=/usr/bin/nvprimed$|ExecStart=/usr/local/bin/nvprimed|' system/nvprime.service |
+    sudo install -Dm644 /dev/stdin /usr/lib/systemd/system/nvprime.service
 
 # Reload systemd
 sudo systemctl daemon-reload
 
-# Enable and start service
-sudo systemctl enable --now nvprime.service
+# Enable and start service with the current binary
+sudo systemctl enable nvprime.service
+sudo systemctl restart nvprime.service
 ```
+
+## Upgrading from `nvprime-sys`
+
+Both programs now use `/etc/nvprime.toml`. To reuse settings from a previous `nvprime.conf`, copy them into the new system file or set `NVPRIME_CONFIG` to the desired TOML file. See the [configuration guide](configuration.md).
+
+If `systemctl cat nvprime.service` shows an older local unit under `/etc/systemd/system/`, it overrides the Arch package's unit. Back it up and move it out of the unit search path to use the packaged unit, or update its `ExecStart` to the installed `nvprimed` path. Check local drop-ins for the old path as well. Run `sudo systemctl reenable nvprime.service` to update the enablement symlink, then `sudo systemctl restart nvprime.service`.
 
 ## Troubleshooting
-
-### Script says "must be run as root"
-
-```bash
-# Add sudo before the command
-sudo ./system/install.sh install
-```
-
-### "Binary not found" error
-
-```bash
-# Build release binaries first
-cargo build --release
-
-# Then install
-sudo ./system/install.sh install
-```
 
 ### Service won't start
 
@@ -182,43 +146,28 @@ ls -l /usr/share/dbus-1/system.d/com.github.nvprime.conf
 systemctl status nvprime.service
 
 # Test D-Bus connection
-busctl call com.github.nvprime /com/github/nvprime com.github.nvprime.Service ping
+busctl call com.github.nvprime /com/github/nvprime com.github.nvprime.Service Ping
 ```
 
 ## Uninstallation
 
-To completely remove nvprime from your system:
+For a source install made with `just setup`, run `just teardown` to stop the daemon and remove its binaries, unit, and D-Bus policy. Use `sudo pacman -R nvprime` for the Arch package.
 
-```bash
-# Using the script (recommended)
-sudo ./system/install.sh uninstall
-
-# Or via just
-just uninstall
-```
-
-This will:
-1. Stop the daemon service
-2. Disable the service
-3. Remove binaries from `/usr/local/bin/`
-4. Remove D-Bus policy from `/usr/share/dbus-1/system.d/`
-5. Remove systemd service from `/usr/lib/systemd/system/`
-6. Reload systemd daemon
+For a manual install, disable and stop `nvprime.service` and remove the binaries, service unit, and D-Bus policy from the paths above. Reload systemd after removing the unit.
 
 ## Integration with Package Managers
 
-The installation script can be used as a reference for creating distribution packages:
-
 ### Arch Linux (PKGBUILD)
 
-See the [Arch installation instructions](../README.md#arch-linux-x86_64). The package installs `nvprime` and `nvprime-sys` in `/usr/bin` and uses `/usr/bin/nvprime-sys` in its systemd service.
+See the [Arch installation instructions](../README.md#arch-linux-x86_64). The package builds from the checkout, installs `nvprime` and `nvprimed` in `/usr/bin`, and uses `/usr/bin/nvprimed` in `nvprime.service`.
 
 ### Debian/Ubuntu (.deb)
 
 ```bash
 # debian/install
-target/release/nvprime usr/local/bin/
-target/release/nvprime-sys usr/local/bin/
+target/release/nvprime usr/bin/
+target/release/nvprimed usr/bin/
+system/nvprime.toml etc/
 system/com.github.nvprime.conf usr/share/dbus-1/system.d/
 system/nvprime.service usr/lib/systemd/system/
 ```
@@ -232,6 +181,6 @@ system/nvprime.service usr/lib/systemd/system/
 
 ## See Also
 
-- [CONFIGURATION.md](CONFIGURATION.md) - Detailed configuration documentation
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Just command reference
-- [README.md](../README.md) - Project overview
+- [Configuration guide](configuration.md)
+- [Development guide](development.md)
+- [Project overview](../README.md)

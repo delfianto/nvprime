@@ -6,8 +6,22 @@ NvPrime uses a TOML-based configuration file to manage system tuning, game-speci
 
 ## Configuration File Location
 
-The configuration file is expected to be at:
-`~/.config/nvprime/nvprime.conf`
+`nvprime` and `nvprimed` both read `/etc/nvprime.toml` by default. The Arch package and `just setup` install a valid TOML file with tuning disabled. Missing files and invalid TOML are reported with the file path.
+
+Set `NVPRIME_CONFIG` to use a different TOML file for a command.
+
+```sh
+NVPRIME_CONFIG="$HOME/.config/nvprime.toml" nvprime ./game_executable
+```
+
+To override the daemon's config, run `sudo systemctl edit nvprime.service` and add this drop-in using a root-managed file.
+
+```ini
+[Service]
+Environment=NVPRIME_CONFIG=/etc/nvprime-custom.toml
+```
+
+Restart `nvprime.service` after changing its configuration. Set `gpu.gpu_tuning` in the daemon config to initialize GPU tuning, and set `gpu.gpu_uuid` there to choose the GPU. If you use a separate client config, enable GPU tuning there to request it for a launch.
 
 ## Structure
 
@@ -94,18 +108,18 @@ These are applied when the section name is passed as an argument or matched.
 [cpu]
 cpu_tuning = true                           # Enable CPU tuning
 amd_epp_tune = "performance"                # EPP hint when game starts
-amd_epp_base = "balanced_performance"       # EPP hint when game ends
+amd_epp_base = "balance_performance"        # EPP hint when game ends
 
 [gpu]
 gpu_tuning = true                           # Enable GPU tuning
 gpu_name = "NVIDIA GeForce RTX 4080"        # Vulkan device name, this is for PRIME offload
 gpu_uuid = "GPU-7e...2b"                    # GPU UUID from nvidia-smi -L
-set_max_pwr = true                          # Force max power limit
-pwr_limit_tune = 350                        # Or set specific limit (Watts)
+set_max_pwr = false                         # Set true to force the maximum
+pwr_limit_tune = 350000                     # Custom power limit in milliwatts
 
 [sys]
 sys_tuning = true                           # Enable system tuning
-proc_ioprio = 10                            # I/O priority (0-7, lower=higher)
+proc_ioprio = 4                             # I/O priority (0-7, lower=higher)
 proc_renice = 10                            # Nice value (-20 to 19, lower=higher)
 splitlock_hack = true                       # Split-lock mitigation
 watchdog_interval_sec = 10                  # Polling interval for cleanup (seconds)

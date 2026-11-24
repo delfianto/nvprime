@@ -76,14 +76,17 @@ just audit
 ### Running Locally
 
 ```bash
-# Run the daemon (requires root)
-just run-daemon
+# Build both binaries
+just build --debug
+
+# Run the daemon (requires root and the installed D-Bus policy)
+sudo env NVPRIME_CONFIG="$PWD/system/nvprime.toml" ./target/debug/nvprimed
 
 # Run the client (in another terminal)
-just run <game-command>
+NVPRIME_CONFIG="$PWD/system/nvprime.toml" just run <game-command>
 
 # Example
-just run steam
+NVPRIME_CONFIG="$PWD/system/nvprime.toml" just run steam
 ```
 
 ## System Installation
@@ -91,18 +94,16 @@ just run steam
 ### Install to System
 
 ```bash
-# Install binaries, D-Bus config, and systemd service
-just install
-
-# Install and enable the daemon service
-just install-service
+# Install binaries, configuration, and enable the daemon service
+just setup
 ```
 
 **Installation locations:**
 
-- Binaries: `/usr/local/bin/nvprime` and `/usr/local/bin/nvprime-sys`
-- D-Bus config: `/usr/share/dbus-1/system.d/com.github.nvprime.conf`
-- Systemd service: `/usr/lib/systemd/system/nvprime.service`
+- Binaries are `/usr/local/bin/nvprime` and `/usr/local/bin/nvprimed`.
+- D-Bus policy is `/etc/dbus-1/system.d/com.github.nvprime.conf`.
+- Systemd unit is `/etc/systemd/system/nvprime.service`.
+- System-wide configuration is `/etc/nvprime.toml`.
 
 ### System Management
 
@@ -111,7 +112,7 @@ just install-service
 just status
 
 # Restart daemon
-just restart-daemon
+just restart
 
 # View live logs
 just logs
@@ -130,7 +131,7 @@ just show-installed
 
 ```bash
 # Remove all installed files and stop service
-just uninstall
+just teardown
 ```
 
 ## Advanced Commands
@@ -175,10 +176,10 @@ just dev
 just test
 
 # Test locally (terminal 1)
-just run-daemon
+sudo env NVPRIME_CONFIG="$PWD/system/nvprime.toml" ./target/debug/nvprimed
 
 # Test client (terminal 2)
-just run game.exe --arg1 --arg2
+NVPRIME_CONFIG="$PWD/system/nvprime.toml" just run game.exe --arg1 --arg2
 ```
 
 ### Preparing a Release
@@ -198,7 +199,7 @@ just release-info
 
 ```bash
 # Build and install
-just install-service
+just setup
 
 # Verify installation
 just status
@@ -221,14 +222,14 @@ just status
 just logs-recent
 
 # Restart daemon
-just restart-daemon
+just restart
 
 # Test D-Bus connection
 just test-dbus
 
 # Reinstall if needed
-just uninstall
-just install-service
+just teardown
+just setup
 ```
 
 ## Common Issues
