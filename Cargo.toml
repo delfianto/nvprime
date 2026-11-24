@@ -1,8 +1,8 @@
 [package]
 name = "nvprime"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
-rust-version = "1.98.0"
+rust-version = "1.100.0"
 default-run = "nvprime"
 authors = ["The quick brown fox jumps over the lazy dog"]
 description = "Minimalist NVIDIA PRIME render offload wrapper with config support"
@@ -19,12 +19,10 @@ path = "src/bin/nvprime_sys.rs"
 [dependencies]
 anyhow = "1"
 chrono = "0.4"
-clap = { version = "4", features = ["derive"] }
 dirs = "7"
 env_logger = "0.11"
 libc = "0.2"
 log = "0.4"
-nix = { version = "0.32", features = ["user", "resource"] }
 nvml-wrapper = "0.13"
 phf = { version = "0.14", features = ["macros"] }
 serde = { version = "1", features = ["derive"] }

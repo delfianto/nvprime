@@ -1,0 +1,20 @@
+pkgbase = nvprime-bin
+	pkgdesc = GPU and CPU tuning wrapper for Linux gaming
+	pkgver = 0.2.0
+	pkgrel = 1
+	url = https://github.com/delfianto/nvprime
+	arch = x86_64
+	license = MIT
+	depends = glibc
+	depends = libgcc
+	depends = systemd
+	depends = dbus
+	optdepends = nvidia-utils: NVML support for NVIDIA GPUs
+	provides = nvprime=0.2.0
+	conflicts = nvprime
+	options = !strip
+	options = !debug
+	source = https://github.com/delfianto/nvprime/releases/download/v0.2.0/nvprime-v0.2.0-linux-x86_64.tar.gz
+	sha256sums = 9697f2c97f823a14bc150ef191f0c66a09a4a8a324941d3cfe5688fe1e10e7a9
+
+pkgname = nvprime-bin
