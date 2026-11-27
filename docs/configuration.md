@@ -86,15 +86,15 @@ Settings applied only when running a specific game executable.
 | `mangohud_conf`      | string | `None`  | Custom MangoHud configuration string.       |
 | `proton_log`         | bool   | Inherit | Enable Proton logging (`PROTON_LOG=1`).     |
 | `proton_ntsync`      | bool   | `true`  | Use NTSync on supported Proton and Linux versions. |
-| `proton_wayland`     | bool   | `true`  | Request Proton's native Wayland driver on supported builds. |
+| `proton_wayland`     | bool   | `false` | Request Proton's native Wayland driver on supported builds. |
 | `wine_dll_overrides` | string | `None`  | Set `WINEDLLOVERRIDES`.                     |
 
-NTSync and native Wayland are requested by default, including when a game section contains only other settings such as `mangohud`. For a game that needs a workaround, set either option to `false` in its matching section.
+NvPrime defaults to NTSync and XWayland, including for games with settings such as `mangohud`. To enable native Wayland globally, set `wayland = true` under `[launch.proton]`. To enable it for a single game, set `proton_wayland = true` in its game section. Set `proton_ntsync = false` there if the game needs an NTSync workaround.
 
 ```toml
 [game.example]
 proton_ntsync = false
-proton_wayland = false
+proton_wayland = true
 ```
 
 Proton 11 uses NTSync automatically when supported. NvPrime sets `PROTON_USE_NTSYNC=1` by default for older builds that require it. An explicit `proton_ntsync = false` sets `PROTON_NO_NTSYNC=1` for newer builds and `PROTON_USE_NTSYNC=0` for older builds. When the setting is omitted, an inherited `PROTON_NO_NTSYNC` value is still honored by Proton. [Proton-CachyOS NTSync change](https://github.com/CachyOS/proton-cachyos/blob/cachyos_main/CHANGELOG.md#version-110-20260428)
@@ -116,7 +116,8 @@ NvPrime sets these launch defaults. Vulkan uses normal driver discovery, and `[g
 
 | Variable | Built-in value |
 | --- | --- |
-| `PROTON_USE_NTSYNC`, `PROTON_ENABLE_WAYLAND` | `1` |
+| `PROTON_USE_NTSYNC` | `1` |
+| `PROTON_ENABLE_WAYLAND`, `PROTON_USE_WAYLAND` | `0` |
 | `__NV_PRIME_RENDER_OFFLOAD` | `1` |
 | `__GLX_VENDOR_LIBRARY_NAME` | `nvidia` |
 | `__VK_LAYER_NV_optimus` | `NVIDIA_only` |
@@ -146,7 +147,7 @@ log_dir = "/tmp"
 enabled = true
 
 [game.example.launch.proton]
-wayland = false
+wayland = true
 
 [game.example.launch.experimental.dlss]
 ray_reconstruction_preset = "RENDER_PRESET_F"
@@ -199,7 +200,7 @@ The Witcher 3 Remastered ships NVIDIA Streamline. For an intentional preset over
 | `PROTON_DLSS_UPGRADE=1` | Still active in CachyOS. It selects a replacement DLSS DLL version. Use it for titles that benefit from the replacement. R620's NGX updater is another option on Proton builds that support it. [CachyOS options](https://github.com/CachyOS/proton-cachyos#proton-cachyos-config-options) · [NVIDIA R620 updater](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/620/gaming.html#dlss-update-steam-play-proton) |
 | `DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE=on` | Still supported. The CachyOS DLSS upgrade already supplies the equivalent combined setting after a successful DLL setup. An explicit NvPrime SR preset also sets the dedicated variable. |
 | `DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION=RENDER_PRESET_K` | A valid per-game Super Resolution preference. Use `super_resolution_preset` where a deliberate K pin matters. |
-| `PROTON_ENABLE_WAYLAND=1` | An active option in CachyOS. Keep it for direct Proton launches if native Wayland is desired. NvPrime's source default now requests it, and the per-game flag supports an opt-out. [CachyOS Wayland options](https://github.com/CachyOS/proton-cachyos#proton-cachyos-config-options) |
+| `PROTON_ENABLE_WAYLAND=1` | An active option in CachyOS. Keep it for direct Proton launches if native Wayland is desired. NvPrime defaults to XWayland and supports opting in to native Wayland globally or per game. [CachyOS Wayland options](https://github.com/CachyOS/proton-cachyos#proton-cachyos-config-options) |
 | `PROTON_HIDE_NVIDIA_GPU=0` | Generally redundant. The checked build applies an NVIDIA-hiding workaround to specific titles such as The Crew Motorfest. A global `0` can undo that workaround. |
 | `PROTON_NO_WM_DECORATION=0` | Generally redundant when using the normal window-decoration policy. Keep a per-game override for a specific window-management issue. [CachyOS decoration options](https://github.com/CachyOS/proton-cachyos#proton-cachyos-config-options) |
 | `PROTON_NVIDIA_LIBS=1` | Still supported as a compatibility option. It adds CUDA, NVENC, NVML, and OptiX libraries in CachyOS. Use it for titles that need one of those libraries, such as hardware PhysX games. Ordinary PRIME offload and DLSS via DXVK-NVAPI already use their own paths. [CachyOS NVIDIA library options](https://github.com/CachyOS/proton-cachyos#proton-cachyos-config-options) · [NVIDIA Vulkan and DLSS guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/620/gaming.html) |

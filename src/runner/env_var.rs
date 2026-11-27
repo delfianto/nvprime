@@ -14,12 +14,13 @@ const DXVK_GPU: &str = "DXVK_FILTER_DEVICE_NAME";
 const VKD3D_GPU: &str = "VKD3D_FILTER_DEVICE_NAME";
 const WINE_DLLS: &str = "WINEDLLOVERRIDES";
 
-const ENV_DEFAULTS: [(&str, &str); 11] = [
+const ENV_DEFAULTS: [(&str, &str); 12] = [
     ("__NV_PRIME_RENDER_OFFLOAD", "1"),
     ("__GLX_VENDOR_LIBRARY_NAME", "nvidia"),
     ("__VK_LAYER_NV_optimus", "NVIDIA_only"),
     (NTSYNC, "1"),
-    (WAYLAND, "1"),
+    (WAYLAND, "0"),
+    (WAYLAND_ALIAS, "0"),
     ("DXVK_LOG_LEVEL", "info"),
     ("DXVK_NVAPI_LOG_LEVEL", "info"),
     ("DXVK_NVAPI_VKREFLEX_LAYER_LOG_LEVEL", "info"),
@@ -361,7 +362,8 @@ mod tests {
             Some(&"1".to_string())
         );
         assert_eq!(vars.get(NTSYNC).map(String::as_str), Some("1"));
-        assert_eq!(vars.get(WAYLAND).map(String::as_str), Some("1"));
+        assert_eq!(vars.get(WAYLAND).map(String::as_str), Some("0"));
+        assert_eq!(vars.get(WAYLAND_ALIAS).map(String::as_str), Some("0"));
     }
 
     #[test]
@@ -381,9 +383,9 @@ mod tests {
         let vars = EnvBuilder::new().with_config(&config, "testgame");
         assert_eq!(vars.get(HUD).map(String::as_str), Some("1"));
         assert_eq!(vars.get(NTSYNC).map(String::as_str), Some("1"));
-        assert_eq!(vars.get(WAYLAND).map(String::as_str), Some("1"));
+        assert_eq!(vars.get(WAYLAND).map(String::as_str), Some("0"));
+        assert_eq!(vars.get(WAYLAND_ALIAS).map(String::as_str), Some("0"));
         assert!(!vars.contains_key(NO_NTSYNC));
-        assert!(!vars.contains_key(WAYLAND_ALIAS));
     }
 
     #[test]
@@ -395,7 +397,7 @@ mangohud = true
 mangohud_conf = "fps_only=1"
 proton_log = true
 proton_ntsync = false
-proton_wayland = false
+proton_wayland = true
 wine_dll_overrides = "dinput8=n,b"
 "#,
         )
@@ -407,8 +409,8 @@ wine_dll_overrides = "dinput8=n,b"
         assert_eq!(vars.get(LOG), Some(&"1".to_string()));
         assert_eq!(vars.get(NTSYNC), Some(&"0".to_string()));
         assert_eq!(vars.get(NO_NTSYNC), Some(&"1".to_string()));
-        assert_eq!(vars.get(WAYLAND), Some(&"0".to_string()));
-        assert_eq!(vars.get(WAYLAND_ALIAS), Some(&"0".to_string()));
+        assert_eq!(vars.get(WAYLAND), Some(&"1".to_string()));
+        assert_eq!(vars.get(WAYLAND_ALIAS), Some(&"1".to_string()));
         assert_eq!(vars.get(WINE_DLLS), Some(&"dinput8=n,b".to_string()));
     }
 
